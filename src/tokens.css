@@ -1,0 +1,254 @@
+/* Walt DE — Design tokens
+   Dual-mode (engineer-dark default / analyst-light) via [data-theme]
+   Dual-density (comfortable / compact) via [data-density]
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap');
+
+:root {
+  /* Type */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-serif: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+
+  /* Type scale (comfortable) */
+  --t-12: 12px;
+  --t-13: 13px;
+  --t-14: 14px;
+  --t-16: 16px;
+  --t-18: 18px;
+  --t-22: 22px;
+  --t-28: 28px;
+  --t-36: 36px;
+  --t-48: 48px;
+  --t-64: 64px;
+
+  /* Spacing (comfortable) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 40px;
+  --s-9: 56px;
+  --s-10: 80px;
+
+  /* Radii */
+  --r-1: 4px;
+  --r-2: 6px;
+  --r-3: 8px;
+  --r-4: 12px;
+  --r-5: 16px;
+  --r-pill: 999px;
+
+  /* Row heights */
+  --row-sm: 28px;
+  --row-md: 36px;
+  --row-lg: 44px;
+
+  /* Brand / medallion */
+  --bronze: #C2733E;
+  --silver: #B7BCC9;
+  --gold:   #E0AF68;
+  --bronze-soft: rgba(194,115,62,0.16);
+  --silver-soft: rgba(183,188,201,0.18);
+  --gold-soft:   rgba(224,175,104,0.16);
+
+  /* Status */
+  --status-ok:   #9ECE6A;
+  --status-warn: #E0AF68;
+  --status-err:  #F7768E;
+  --status-info: #7AA2F7;
+  --status-run:  #7DCFFF;
+}
+
+/* Compact density overrides */
+[data-density="compact"] {
+  --s-1: 2px;
+  --s-2: 6px;
+  --s-3: 10px;
+  --s-4: 12px;
+  --s-5: 16px;
+  --s-6: 20px;
+  --s-7: 26px;
+  --s-8: 32px;
+  --s-9: 44px;
+  --s-10: 60px;
+  --row-sm: 24px;
+  --row-md: 30px;
+  --row-lg: 36px;
+  --t-13: 12px;
+  --t-14: 13px;
+  --t-16: 15px;
+}
+
+/* — Dark (engineer) — default — */
+[data-theme="dark"], :root {
+  --bg-app:       #0B0D12;
+  --bg-surface:   #11141B;
+  --bg-elevated:  #181C26;
+  --bg-overlay:   #1F2430;
+  --bg-inset:     #0E1118;
+  --bg-hover:     rgba(255,255,255,0.04);
+  --bg-active:    rgba(255,255,255,0.07);
+
+  --border-subtle: #1B1F2A;
+  --border-default:#232734;
+  --border-strong: #2E3445;
+  --border-focus:  #7AA2F7;
+
+  --text-primary:   #E6E8EE;
+  --text-secondary: #9CA3B5;
+  --text-muted:     #5A6175;
+  --text-dim:       #3E4356;
+  --text-inverse:   #0B0D12;
+
+  --accent:         #7AA2F7;
+  --accent-soft:    rgba(122,162,247,0.14);
+  --accent-strong:  #5A87EA;
+  --accent-on:      #0B0D12;
+
+  --semantic:       #BB9AF7;
+  --semantic-soft:  rgba(187,154,247,0.14);
+
+  --code-bg:        #0E1118;
+  --code-line:      #1B1F2A;
+
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
+  --shadow-lg: 0 24px 60px rgba(0,0,0,0.55);
+
+  --chrome-bg: #1A1D26;
+  --chrome-text: #C8CCDA;
+
+  color-scheme: dark;
+}
+
+/* — Light (analyst) — */
+[data-theme="light"] {
+  --bg-app:       #FAFAF7;
+  --bg-surface:   #FFFFFF;
+  --bg-elevated:  #FFFFFF;
+  --bg-overlay:   #FFFFFF;
+  --bg-inset:     #F4F3EE;
+  --bg-hover:     rgba(15,18,30,0.04);
+  --bg-active:    rgba(15,18,30,0.07);
+
+  --border-subtle: #ECEAE3;
+  --border-default:#DCD9D0;
+  --border-strong: #C3BFB3;
+  --border-focus:  #3656C6;
+
+  --text-primary:   #15171F;
+  --text-secondary: #535769;
+  --text-muted:     #888B98;
+  --text-dim:       #B5B7C1;
+  --text-inverse:   #FFFFFF;
+
+  --accent:         #3656C6;
+  --accent-soft:    rgba(54,86,198,0.10);
+  --accent-strong:  #2745A8;
+  --accent-on:      #FFFFFF;
+
+  --semantic:       #7C56C6;
+  --semantic-soft:  rgba(124,86,198,0.10);
+
+  --code-bg:        #F4F3EE;
+  --code-line:      #E4E1D7;
+
+  --shadow-md: 0 4px 16px rgba(20,18,12,0.07);
+  --shadow-lg: 0 16px 44px rgba(20,18,12,0.10);
+
+  --chrome-bg: #ECEAE3;
+  --chrome-text: #444856;
+
+  --status-ok:   #3F8F3F;
+  --status-warn: #B07A1F;
+  --status-err:  #C0394F;
+  --status-info: #3656C6;
+
+  color-scheme: light;
+}
+
+/* Resets that apply to artboards */
+.walt-root {
+  font-family: var(--font-sans);
+  font-size: var(--t-14);
+  color: var(--text-primary);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01';
+  letter-spacing: -0.005em;
+}
+.walt-root *, .walt-root *::before, .walt-root *::after { box-sizing: border-box; }
+.walt-mono { font-family: var(--font-mono); font-feature-settings: 'zero', 'ss02'; }
+.walt-serif { font-family: var(--font-serif); }
+
+/* Generic UI primitives */
+.walt-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+  height: var(--row-md); padding: 0 var(--s-4);
+  border-radius: var(--r-3); border: 1px solid var(--border-default);
+  background: var(--bg-elevated); color: var(--text-primary);
+  font: 500 var(--t-13)/1 var(--font-sans);
+  cursor: pointer; transition: background .12s, border-color .12s, color .12s;
+  white-space: nowrap;
+}
+.walt-btn:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+.walt-btn.primary {
+  background: var(--accent); color: var(--accent-on); border-color: transparent;
+}
+.walt-btn.primary:hover { background: var(--accent-strong); }
+.walt-btn.ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }
+.walt-btn.ghost:hover { background: var(--bg-hover); color: var(--text-primary); }
+.walt-btn.sm { height: var(--row-sm); padding: 0 var(--s-3); font-size: var(--t-12); }
+
+.walt-chip {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  height: 22px; padding: 0 var(--s-2);
+  border-radius: var(--r-2);
+  font: 500 var(--t-12)/1 var(--font-mono);
+  background: var(--bg-inset); color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  letter-spacing: 0;
+}
+.walt-chip.bronze { background: var(--bronze-soft); color: var(--bronze); border-color: transparent; }
+.walt-chip.silver { background: var(--silver-soft); color: var(--silver); border-color: transparent; }
+.walt-chip.gold   { background: var(--gold-soft);   color: var(--gold);   border-color: transparent; }
+.walt-chip.accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.walt-chip.semantic { background: var(--semantic-soft); color: var(--semantic); border-color: transparent; }
+.walt-chip.ok   { color: var(--status-ok);   background: rgba(158,206,106,0.12); border-color: transparent; }
+.walt-chip.warn { color: var(--status-warn); background: rgba(224,175,104,0.14); border-color: transparent; }
+.walt-chip.err  { color: var(--status-err);  background: rgba(247,118,142,0.14); border-color: transparent; }
+
+.walt-dot { width: 6px; height: 6px; border-radius: 999px; display: inline-block; }
+.walt-dot.ok   { background: var(--status-ok); }
+.walt-dot.warn { background: var(--status-warn); }
+.walt-dot.err  { background: var(--status-err); }
+.walt-dot.run  { background: var(--status-run); animation: walt-pulse 1.6s infinite; }
+
+@keyframes walt-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(125, 207, 255, 0.5); }
+  50%      { opacity: 0.6; box-shadow: 0 0 0 4px rgba(125, 207, 255, 0); }
+}
+
+.walt-divider { height: 1px; background: var(--border-subtle); }
+.walt-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--r-4);
+}
+
+/* Scrollbar in dark */
+.walt-root ::-webkit-scrollbar { width: 10px; height: 10px; }
+.walt-root ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+.walt-root ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: padding-box; border: 2px solid transparent; }
+.walt-root ::-webkit-scrollbar-track { background: transparent; }
+
+/* Subtle dotted grid (used on canvases) */
+.walt-grid-bg {
+  background-image: radial-gradient(circle at 1px 1px, var(--border-subtle) 1px, transparent 0);
+  background-size: 16px 16px;
+}
