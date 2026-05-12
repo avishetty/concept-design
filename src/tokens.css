@@ -125,48 +125,48 @@
   color-scheme: dark;
 }
 
-/* — Light (analyst) — */
+/* — Light (analyst) — Linear-inspired cool neutral palette */
 [data-theme="light"] {
-  --bg-app:       #FAFAF7;
+  --bg-app:       #F7F8F9;
   --bg-surface:   #FFFFFF;
   --bg-elevated:  #FFFFFF;
   --bg-overlay:   #FFFFFF;
-  --bg-inset:     #F4F3EE;
-  --bg-hover:     rgba(15,18,30,0.04);
-  --bg-active:    rgba(15,18,30,0.07);
+  --bg-inset:     #F3F4F6;
+  --bg-hover:     rgba(17,20,24,0.04);
+  --bg-active:    rgba(17,20,24,0.07);
 
-  --border-subtle: #ECEAE3;
-  --border-default:#DCD9D0;
-  --border-strong: #C3BFB3;
-  --border-focus:  #3656C6;
+  --border-subtle: #EBECEF;
+  --border-default:#E1E3E6;
+  --border-strong: #C9CCD1;
+  --border-focus:  #5E6AD2;
 
-  --text-primary:   #15171F;
-  --text-secondary: #535769;
-  --text-muted:     #888B98;
-  --text-dim:       #B5B7C1;
+  --text-primary:   #1F2023;
+  --text-secondary: #6B7280;
+  --text-muted:     #8A8F98;
+  --text-dim:       #B4B8BF;
   --text-inverse:   #FFFFFF;
 
-  --accent:         #3656C6;
-  --accent-soft:    rgba(54,86,198,0.10);
-  --accent-strong:  #2745A8;
+  --accent:         #5E6AD2;
+  --accent-soft:    rgba(94,106,210,0.10);
+  --accent-strong:  #4A55B8;
   --accent-on:      #FFFFFF;
 
-  --semantic:       #7C56C6;
-  --semantic-soft:  rgba(124,86,198,0.10);
+  --semantic:       #8A63D2;
+  --semantic-soft:  rgba(138,99,210,0.10);
 
-  --code-bg:        #F4F3EE;
-  --code-line:      #E4E1D7;
+  --code-bg:        #F3F4F6;
+  --code-line:      #E5E7EB;
 
-  --shadow-md: 0 4px 16px rgba(20,18,12,0.07);
-  --shadow-lg: 0 16px 44px rgba(20,18,12,0.10);
+  --shadow-md: 0 4px 16px rgba(17,20,24,0.06);
+  --shadow-lg: 0 16px 44px rgba(17,20,24,0.10);
 
-  --chrome-bg: #ECEAE3;
-  --chrome-text: #444856;
+  --chrome-bg: #EDEEF1;
+  --chrome-text: #4B5563;
 
   --status-ok:   #3F8F3F;
   --status-warn: #B07A1F;
   --status-err:  #C0394F;
-  --status-info: #3656C6;
+  --status-info: #5E6AD2;
 
   color-scheme: light;
 }
@@ -232,6 +232,83 @@
 @keyframes walt-pulse {
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(125, 207, 255, 0.5); }
   50%      { opacity: 0.6; box-shadow: 0 0 0 4px rgba(125, 207, 255, 0); }
+}
+
+@keyframes walt-fade-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.phase-stepper-label {
+  animation: walt-fade-in .22s ease-out both;
+  display: inline-block;
+}
+
+@keyframes walt-rise-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);   }
+}
+.walt-rise-in {
+  animation: walt-rise-in .26s cubic-bezier(.22,.61,.36,1) both;
+  transform-origin: top left;
+}
+
+@keyframes walt-ring {
+  0%   { opacity: 0.55; transform: scale(1);   }
+  70%  { opacity: 0;    transform: scale(1.65); }
+  100% { opacity: 0;    transform: scale(1.65); }
+}
+
+@keyframes walt-slide-in-r {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.walt-slide-in-r {
+  animation: walt-slide-in-r .26s ease-out both;
+}
+
+/* Side panel content slides in once the panel is wide enough to render. */
+@keyframes walt-panel-in {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.walt-panel-in {
+  animation: walt-panel-in .32s cubic-bezier(.22,.61,.36,1) both;
+}
+
+/* Soft pop used on chips, status pills, etc. */
+@keyframes walt-pop-in {
+  0%   { opacity: 0; transform: translateY(4px) scale(.96); }
+  60%  { opacity: 1; transform: translateY(0)   scale(1.02); }
+  100% { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.walt-pop-in { animation: walt-pop-in .32s cubic-bezier(.22,.61,.36,1) both; }
+
+/* Generic item stagger — set `--i: <index>` on the element. */
+@keyframes walt-stagger-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.walt-stagger-in {
+  animation: walt-stagger-in .26s cubic-bezier(.22,.61,.36,1) both;
+  animation-delay: calc(var(--i, 0) * 36ms);
+}
+
+/* Static breathing dot — used in the agent status row footer + scattered status indicators. */
+@keyframes walt-breathe {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
+.walt-breathe { animation: walt-breathe 2.4s ease-in-out infinite; }
+
+/* Tiny inline spinner used by progress steps. Set `--c: <color>` per instance. */
+@keyframes walt-spin { to { transform: rotate(360deg); } }
+.walt-spinner {
+  width: 10px; height: 10px;
+  border-radius: 999px;
+  border: 1.6px solid color-mix(in srgb, var(--c, var(--accent)) 22%, transparent);
+  border-top-color: var(--c, var(--accent));
+  animation: walt-spin .8s linear infinite;
+  display: inline-block;
 }
 
 .walt-divider { height: 1px; background: var(--border-subtle); }

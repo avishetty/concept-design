@@ -1,5 +1,5 @@
 import React from 'react';
-import { Walt, Icon, MiniSpark, MiniBars } from '../lib/components.jsx';
+import { Walt, Icon, MiniSpark, MiniBars, ChatComposer } from '../lib/components.jsx';
 import { NavRail, StepDot, TabBtn } from './shared.jsx';
 
 export function EngineerApp() {
@@ -114,6 +114,7 @@ function ConversationPane({ artifactOpen, setArtifactOpen, sessionsOpen, setSess
       flex: 1, minWidth: 0,
       display: 'flex', flexDirection: 'column',
       borderRight: '1px solid var(--border-subtle)',
+      background: 'var(--bg-surface)',
     }}>
       <ConvHeader
         artifactOpen={artifactOpen} setArtifactOpen={setArtifactOpen}
@@ -214,7 +215,7 @@ function ConvHeader({ artifactOpen, setArtifactOpen, sessionsOpen, setSessionsOp
         onClick={() => setArtifactOpen && setArtifactOpen(!artifactOpen)}
         title="Show plan, workspace files, and context Walt is using"
       >
-        <Icon name="layers" size={12}/> Plan &amp; files
+        <Icon name="sidePanel" size={13}/> Plan &amp; files
         <span className="walt-mono" style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>⌘\</span>
       </button>
       <button className="walt-btn sm"><Icon name="dots" size={12}/></button>
@@ -422,35 +423,15 @@ function SuggestionChip({ children }) {
 
 function Composer() {
   return (
-    <div style={{ padding: '14px 28px 18px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+    <div style={{ padding: '14px 28px 18px', background: 'var(--bg-surface)' }}>
       <div style={{ maxWidth: 760, margin: '0 auto' }}>
-        <div style={{
-          border: '1px solid var(--border-default)',
-          background: 'var(--bg-elevated)',
-          borderRadius: 12,
-          padding: '10px 12px 8px',
-        }}>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-            <ContextChip icon="folder" label="analytics-platform" />
-            <ContextChip icon="db" label="snowflake.prod_warehouse" />
-            <ContextChip icon="schema" label="semantic/revenue.yml" />
-            <ContextChip icon="plus" label="Add context" muted />
-          </div>
-          <div style={{ fontSize: 14, color: 'var(--text-muted)', minHeight: 44, padding: '4px 2px' }}>
-            Ask Walt to ingest, transform, profile, model, or explain…
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-            <button className="walt-btn ghost sm"><Icon name="plus" size={12}/></button>
-            <div style={{ width: 1, height: 16, background: 'var(--border-subtle)' }}/>
-            <div className="walt-chip semantic"><Icon name="sparkle" size={10}/> Agent · sonnet-de</div>
-            <div className="walt-chip"><Icon name="branch" size={10}/> walt/stripe-pm</div>
-            <div style={{ flex: 1 }}/>
-            <span className="walt-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>⌘↵</span>
-            <button className="walt-btn primary sm" style={{ height: 28 }}>
-              <Icon name="arrowUp" size={12}/> Send
-            </button>
-          </div>
-        </div>
+        <ChatComposer
+          placeholder="Ask Walt to ingest, transform, profile, model, or explain…"
+          pills={[
+            { icon: 'sparkle', label: 'Agent · sonnet-de' },
+            { icon: 'branch', label: 'walt/stripe-pm' },
+          ]}
+        />
       </div>
     </div>
   );

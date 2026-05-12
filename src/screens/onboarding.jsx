@@ -1,5 +1,5 @@
 import React from 'react';
-import { Walt, Icon } from '../lib/components.jsx';
+import { Walt, Icon, ChatComposer } from '../lib/components.jsx';
 import { NavRail, StepDot } from './shared.jsx';
 
 export function OnboardingScenarioScreen() {
@@ -137,7 +137,7 @@ function MedTier({ color, label, n }) {
 function OnboardingChat({ openArtifact, setOpenArtifact, onOpenProjects }) {
   const open = (k) => setOpenArtifact(openArtifact === k ? null : k);
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--bg-app)' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--bg-surface)' }}>
       <div style={{
         height: 48, flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 10,
@@ -176,7 +176,7 @@ function OnboardingChat({ openArtifact, setOpenArtifact, onOpenProjects }) {
           title={openArtifact ? 'Close side panel' : 'Open side panel'}
           style={{ width: 28, padding: 0, justifyContent: 'center', color: openArtifact ? 'var(--accent)' : 'var(--text-muted)' }}
         >
-          <Icon name="layers" size={13}/>
+          <Icon name="sidePanel" size={14}/>
         </button>
       </div>
 
@@ -259,27 +259,15 @@ function OnboardingChat({ openArtifact, setOpenArtifact, onOpenProjects }) {
         </div>
       </div>
 
-      <div style={{ padding: '14px 28px 18px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+      <div style={{ padding: '14px 28px 18px', background: 'var(--bg-surface)' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <div style={{ border: '1px solid var(--border-default)', background: 'var(--bg-elevated)', borderRadius: 14, padding: '10px 12px 8px' }}>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-              <span className="walt-chip" style={{ height: 22 }}><Icon name="folder" size={11}/> finance-platform</span>
-              <span className="walt-chip" style={{ height: 22 }}><Icon name="db" size={11}/> sqlserver · ERP_PROD</span>
-              <span className="walt-chip" style={{ height: 22, borderStyle: 'dashed' }}><Icon name="plus" size={11}/> Add context</span>
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--text-muted)', minHeight: 38, padding: '4px 2px' }}>
-              Reply to Walt, or paste a doc with the questions to answer…
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-              <button className="walt-btn ghost sm"><Icon name="plus" size={12}/></button>
-              <div style={{ width: 1, height: 16, background: 'var(--border-subtle)' }}/>
-              <span className="walt-chip semantic" style={{ height: 22 }}><Icon name="sparkle" size={10}/> Agent · sonnet-de</span>
-              <span className="walt-chip" style={{ height: 22 }}><Icon name="branch" size={10}/> staging/dev</span>
-              <div style={{ flex: 1 }}/>
-              <span className="walt-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>⌘↵</span>
-              <button className="walt-btn primary sm" style={{ height: 28 }}><Icon name="arrowUp" size={12}/> Send</button>
-            </div>
-          </div>
+          <ChatComposer
+            placeholder="Reply to Walt, or paste a doc with the questions to answer…"
+            pills={[
+              { icon: 'sparkle', label: 'Agent · sonnet-de' },
+              { icon: 'branch', label: 'staging/dev' },
+            ]}
+          />
         </div>
       </div>
     </div>

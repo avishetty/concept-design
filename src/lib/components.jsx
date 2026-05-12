@@ -1,9 +1,10 @@
 // Walt — shared primitives: mascot, window chrome, icons, helpers.
+import React from 'react';
 
 // ─────────────────────────────────────────────────────────────
 //  Walt mascot — three stacked discs (bronze / silver / gold)
 // ─────────────────────────────────────────────────────────────
-export function Walt({ size = 64, expression = 'calm', sleeping = false, thinking = false }) {
+export function Walt({ size = 64, expression = 'calm', sleeping = false, thinking = false, blinking = false }) {
   const palette = {
     bronze: 'var(--bronze)',
     silver: 'var(--silver)',
@@ -11,58 +12,86 @@ export function Walt({ size = 64, expression = 'calm', sleeping = false, thinkin
     face:   'var(--text-inverse)',
   };
   const w = size, h = size * 1.05;
-  const eyesId = `walt-eyes-${Math.random().toString(36).slice(2, 7)}`;
+  const uid = React.useId().replace(/:/g, '');
+  const eyesId  = `walt-eyes-${uid}`;
+  const blinkId = `walt-blink-${uid}`;
   return (
     <svg width={w} height={h} viewBox="0 0 48 50" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-      {thinking && (
+      {(thinking || blinking) && (
         <style>{`
-          @keyframes ${eyesId} { 0%,100% { transform: translateX(-1.2px); } 50% { transform: translateX(1.2px); } }
-          .${eyesId} { animation: ${eyesId} 1.1s ease-in-out infinite; transform-origin: 24px 8px; transform-box: fill-box; }
+          ${thinking ? `
+            @keyframes ${eyesId} { 0%,100% { transform: translateX(-1.2px); } 50% { transform: translateX(1.2px); } }
+            .${eyesId} { animation: ${eyesId} 1.1s ease-in-out infinite; transform-origin: 24px 8px; transform-box: fill-box; }
+          ` : ''}
+          ${blinking ? `
+            @keyframes ${blinkId} {
+              0%, 88%, 100%   { transform: scaleY(1); }
+              92%, 94%        { transform: scaleY(0.08); }
+              96%             { transform: scaleY(1); }
+              97.5%           { transform: scaleY(0.08); }
+              99%             { transform: scaleY(1); }
+            }
+            .${blinkId} { animation: ${blinkId} 5.6s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+          ` : ''}
         `}</style>
       )}
-      <ellipse cx="24" cy="46" rx="20" ry="2.5" fill={palette.bronze} opacity="0.18"/>
-      <g transform="translate(2 30) rotate(-2 22 6)">
-        <rect x="0" y="0" width="44" height="13" rx="6.5" fill={palette.bronze}/>
-        <rect x="0" y="0" width="44" height="3"  rx="3" fill="#fff" opacity="0.22"/>
+      <ellipse cx="24" cy="46" rx="16" ry="2.2" fill={palette.bronze} opacity="0.18"/>
+      <g transform="translate(9 30) rotate(-2 15 6.5)">
+        <rect x="0" y="0" width="30" height="13" rx="6.5" fill={palette.bronze}/>
+        <rect x="0" y="0" width="30" height="3"  rx="3" fill="#fff" opacity="0.22"/>
       </g>
-      <g transform="translate(7 17) rotate(1.5 17 6)">
-        <rect x="0" y="0" width="34" height="12" rx="6" fill={palette.silver}/>
-        <rect x="0" y="0" width="34" height="2"  rx="2" fill="#fff" opacity="0.18"/>
+      <g transform="translate(2 17) rotate(1.5 22 6)">
+        <rect x="0" y="0" width="44" height="12" rx="6" fill={palette.silver}/>
+        <rect x="0" y="0" width="44" height="2"  rx="2" fill="#fff" opacity="0.18"/>
       </g>
-      <g transform="translate(8 5) rotate(-1.5 16 6)">
-        <rect x="0" y="0" width="32" height="13" rx="6.5" fill={palette.gold}/>
-        <rect x="0" y="0" width="32" height="3"  rx="3" fill="#fff" opacity="0.45"/>
+      <g transform="translate(11 5) rotate(-1.5 13 6.5)">
+        <rect x="0" y="0" width="26" height="13" rx="6.5" fill={palette.gold}/>
+        <rect x="0" y="0" width="26" height="3"  rx="3" fill="#fff" opacity="0.45"/>
         <g className={thinking ? eyesId : ''}>
           {sleeping ? (
             <g stroke={palette.face} strokeWidth="1.1" strokeLinecap="round" fill="none">
-              <path d="M11 7 L14 7" />
-              <path d="M18 7 L21 7" />
+              <path d="M8 7 L11 7" />
+              <path d="M15 7 L18 7" />
             </g>
           ) : (
-            <g fill={palette.face}>
-              <circle cx="12" cy="7" r="1.6"/>
-              <circle cx="20" cy="7" r="1.6"/>
+            <g className={blinking ? blinkId : ''} fill={palette.face}>
+              <circle cx="10" cy="7" r="1.6"/>
+              <circle cx="16" cy="7" r="1.6"/>
             </g>
           )}
         </g>
         {!sleeping && (expression === 'happy'
-          ? <path d="M14 10.5 Q16 12 18 10.5" stroke={palette.face} strokeWidth="0.9" fill="none" strokeLinecap="round"/>
-          : <path d="M14.5 10.8 L17.5 10.8" stroke={palette.face} strokeWidth="0.9" strokeLinecap="round"/>
+          ? <path d="M11 10.5 Q13 12 15 10.5" stroke={palette.face} strokeWidth="0.9" fill="none" strokeLinecap="round"/>
+          : <path d="M11.5 10.8 L14.5 10.8" stroke={palette.face} strokeWidth="0.9" strokeLinecap="round"/>
         )}
       </g>
     </svg>
   );
 }
 
-// Compact monogram — just the gold disc with the face.
+// Compact 3-layer monogram — head / shoulders / base, scaled for small use.
+// Mirrors the Walt mascot silhouette (narrow head, wider torso, narrower base).
+// If `accent` is provided, all three layers tint with it (great for chrome / dark
+// surfaces). Otherwise it uses the canonical bronze / silver / gold palette.
 export function WaltMark({ size = 24, accent }) {
+  const gold   = accent || 'var(--gold)';
+  const silver = accent || 'var(--silver)';
+  const bronze = accent || 'var(--bronze)';
+  const face   = 'var(--text-inverse)';
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-      <rect x="1" y="6" width="22" height="12" rx="6" fill={accent || 'var(--gold)'}/>
-      <rect x="1" y="6" width="22" height="3"  rx="3" fill="#fff" opacity="0.45"/>
-      <circle cx="9.5" cy="12" r="1.3" fill="var(--text-inverse)"/>
-      <circle cx="14.5" cy="12" r="1.3" fill="var(--text-inverse)"/>
-      <path d="M10 15 L14 15" stroke="var(--text-inverse)" strokeWidth="0.9" strokeLinecap="round"/>
+      {/* Bronze base */}
+      <rect x="5" y="17"   width="14" height="5" rx="2.5" fill={bronze}/>
+      <rect x="5" y="17"   width="14" height="1.4" rx="1.4" fill="#fff" opacity="0.22"/>
+      {/* Silver torso (widest) */}
+      <rect x="1" y="10.2" width="22" height="5" rx="2.5" fill={silver}/>
+      <rect x="1" y="10.2" width="22" height="1.2" rx="1.2" fill="#fff" opacity="0.18"/>
+      {/* Gold head */}
+      <rect x="6" y="3"    width="12" height="5.6" rx="2.8" fill={gold}/>
+      <rect x="6" y="3"    width="12" height="1.4" rx="1.4" fill="#fff" opacity="0.45"/>
+      <circle cx="10"   cy="5.9" r="0.85" fill={face}/>
+      <circle cx="14"   cy="5.9" r="0.85" fill={face}/>
+      <path d="M10.6 7.5 L13.4 7.5" stroke={face} strokeWidth="0.7" strokeLinecap="round"/>
     </svg>
   );
 }
@@ -177,7 +206,7 @@ export function Icon({ name, size = 16, color = 'currentColor', strokeWidth = 1.
     code:     <g {...stroke}><path d="M5 5 2 8 5 11"/><path d="M11 5 14 8 11 11"/><path d="M9.5 4 6.5 12"/></g>,
     sparkle:  <g {...stroke}><path d="M8 2 L8 14"/><path d="M2 8 L14 8"/><path d="M4 4 L12 12"/><path d="M12 4 L4 12"/></g>,
     flow:     <g {...stroke}><circle cx="3.5" cy="4" r="1.5"/><circle cx="12.5" cy="4" r="1.5"/><circle cx="8" cy="12" r="1.5"/><path d="M4.5 5 7 11"/><path d="M11.5 5 9 11"/></g>,
-    settings: <g {...stroke}><circle cx="8" cy="8" r="2"/><path d="M8 1.5 V3 M8 13 V14.5 M1.5 8 H3 M13 8 H14.5 M3.5 3.5 L4.5 4.5 M11.5 11.5 L12.5 12.5 M3.5 12.5 L4.5 11.5 M11.5 4.5 L12.5 3.5"/></g>,
+    settings: <g {...stroke}><path d="M2.5 4 H5.5"/><path d="M9 4 H13.5"/><circle cx="7.25" cy="4" r="1.6"/><path d="M2.5 8 H10"/><path d="M13.5 8 H13.5"/><circle cx="11.75" cy="8" r="1.6"/><path d="M2.5 12 H4"/><path d="M7.5 12 H13.5"/><circle cx="5.75" cy="12" r="1.6"/></g>,
     bell:     <g {...stroke}><path d="M4 11 V7 a4 4 0 0 1 8 0 V11 L13 12 H3 z"/><path d="M6.5 13.5 a1.5 1.5 0 0 0 3 0"/></g>,
     user:     <g {...stroke}><circle cx="8" cy="6" r="2.5"/><path d="M3 13.5 a5 5 0 0 1 10 0"/></g>,
     arrowR:   <g {...stroke}><path d="M3 8 H13"/><path d="M9.5 4.5 13 8 9.5 11.5"/></g>,
@@ -195,6 +224,7 @@ export function Icon({ name, size = 16, color = 'currentColor', strokeWidth = 1.
     schema:   <g {...stroke}><rect x="1.5" y="2.5" width="5" height="3" rx="0.5"/><rect x="9.5" y="2.5" width="5" height="3" rx="0.5"/><rect x="1.5" y="10.5" width="5" height="3" rx="0.5"/><rect x="9.5" y="10.5" width="5" height="3" rx="0.5"/><path d="M4 5.5 V10.5"/><path d="M12 5.5 V10.5"/><path d="M6.5 4 H9.5"/><path d="M6.5 12 H9.5"/></g>,
     notebook: <g {...stroke}><rect x="3" y="2" width="10" height="12" rx="1"/><path d="M5 5 H11"/><path d="M5 8 H9"/><path d="M5 11 H10"/><path d="M3 5 H4 M3 8 H4 M3 11 H4"/></g>,
     layers:   <g {...stroke}><path d="M8 2 L1.5 5 8 8 14.5 5 z"/><path d="M2 8 L8 11 14 8"/><path d="M2 11 L8 14 14 11"/></g>,
+    sidePanel:<g {...stroke}><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M6 3 V13"/></g>,
     rocket:   <g {...stroke}><path d="M10.5 2 a5 5 0 0 1 3.5 3.5 L9 11 L5 7 z"/><path d="M5 7 L3 9 L5 11 L7 9"/><path d="M9 11 L11 13"/></g>,
     download: <g {...stroke}><path d="M8 2.5 V10"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M2.5 13 H13.5"/></g>,
     minus:    <g {...stroke}><path d="M3.5 8 12.5 8"/></g>,
@@ -205,11 +235,102 @@ export function Icon({ name, size = 16, color = 'currentColor', strokeWidth = 1.
     file:     <g {...stroke}><path d="M4 2 H9 L12 5 V13 a1 1 0 0 1-1 1 H4 a1 1 0 0 1-1-1 V3 a1 1 0 0 1 1-1 z"/><path d="M9 2 V5 H12"/></g>,
     clock:    <g {...stroke}><circle cx="8" cy="8" r="6"/><path d="M8 5 V8 L10 9.5"/></g>,
     close:    <g {...stroke}><path d="M4 4 12 12 M12 4 4 12"/></g>,
+    mic:      <g {...stroke}><rect x="6" y="2" width="4" height="8" rx="2"/><path d="M3.5 8 a4.5 4.5 0 0 0 9 0"/><path d="M8 12.5 V14"/></g>,
+    shield:   <g {...stroke}><path d="M8 2 L2.5 4 V8 C2.5 11 5 13.5 8 14 C11 13.5 13.5 11 13.5 8 V4 z"/></g>,
+    wand:     <g {...stroke}><path d="M3 13 L11 5"/><path d="M11 2 L11.8 3.4 L13.2 4 L11.8 4.6 L11 6 L10.2 4.6 L8.8 4 L10.2 3.4 z"/><path d="M5 9 L7 11"/></g>,
+    pulse:    <g {...stroke}><path d="M1.5 8 H5 L6.5 4 L9.5 12 L11 8 H14.5"/></g>,
+    cloud:    <g {...stroke}><path d="M4.5 12 a3 3 0 0 1-1-5.8 a3.5 3.5 0 0 1 6.8-1 a2.5 2.5 0 0 1 1.2 4.8 H12 H4.5 z"/></g>,
+    play2:    <g {...stroke}><circle cx="8" cy="8" r="6"/><path d="M6.5 5.5 11 8 6.5 10.5 z" fill={color} stroke="none"/></g>,
+    spinner:  <g {...stroke}><path d="M8 2 a6 6 0 0 1 6 6"/></g>,
+    lock:     <g {...stroke}><rect x="3.5" y="7.5" width="9" height="6" rx="1"/><path d="M5 7.5 V5 a3 3 0 0 1 6 0 V7.5"/></g>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" style={s} aria-hidden="true">
       {paths[name] || paths.dots}
     </svg>
+  );
+}
+
+// Chat composer — clean rounded input with pill selectors and circular send
+export function ChatComposer({ placeholder = 'Message Walt…', pills = [] }) {
+  return (
+    <div style={{
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border-subtle)',
+      borderRadius: 20,
+      padding: '14px 16px 10px',
+      boxShadow: '0 1px 2px rgba(17,20,24,0.04), 0 6px 20px rgba(17,20,24,0.05)',
+    }}>
+      <div style={{
+        fontSize: 14, lineHeight: 1.5, color: 'var(--text-muted)',
+        minHeight: 44, padding: '2px 2px 6px',
+      }}>
+        {placeholder}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <ComposerIconBtn icon="plus" title="Attach"/>
+        {pills.map((p, i) => (
+          <ComposerPill key={i} icon={p.icon} label={p.label}/>
+        ))}
+        <div style={{ flex: 1 }}/>
+        <ComposerIconBtn icon="mic" title="Voice"/>
+        <button
+          aria-label="Send"
+          style={{
+            width: 30, height: 30, borderRadius: 999,
+            border: 'none', cursor: 'pointer',
+            background: 'var(--text-primary)', color: 'var(--text-inverse)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'opacity .12s, transform .12s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+        >
+          <Icon name="arrowUp" size={13} color="var(--text-inverse)"/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ComposerIconBtn({ icon, title }) {
+  return (
+    <button
+      title={title}
+      style={{
+        width: 28, height: 28, borderRadius: 999,
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        color: 'var(--text-muted)',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background .12s, color .12s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+    >
+      <Icon name={icon} size={14}/>
+    </button>
+  );
+}
+
+function ComposerPill({ icon, label }) {
+  return (
+    <button
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        height: 26, padding: '0 8px 0 8px',
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        borderRadius: 999,
+        color: 'var(--text-secondary)',
+        fontSize: 12.5, fontWeight: 500,
+        transition: 'background .12s, color .12s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+    >
+      {icon && <Icon name={icon} size={12} color="currentColor"/>}
+      {label}
+      <Icon name="chevD" size={10} color="currentColor"/>
+    </button>
   );
 }
 
