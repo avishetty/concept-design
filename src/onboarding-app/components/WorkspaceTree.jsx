@@ -21,7 +21,7 @@ export function WorkspaceTree({ root = 'finance-platform', highlight = null }) {
       <Node icon="folder" depth={1} label="silver/" sub="" active={highlight === 'silver'}/>
       <Node icon="folder" depth={2} label="s1_dedup/"/>
       <Node icon="folder" depth={2} label="s2_typecast/"/>
-      <Node icon="folder" depth={2} label="s3_standardise/"/>
+      <Node icon="folder" depth={2} label="s3_cleanse/"/>
       <Node icon="folder" depth={1} label="gold/" sub=""/>
       <Node icon="folder" depth={2} label="g1_dims/"/>
       <Node icon="folder" depth={2} label="g1_facts/"/>

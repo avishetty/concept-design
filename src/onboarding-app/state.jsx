@@ -179,16 +179,30 @@ export function allProjects(ctx) {
 // Gating fields (ingestionStatus / silverStageStatus) are watched by the chat autoplayer
 // so it pauses the script until simulated work signals "complete" / "review-ready".
 const initialShellState = {
-  shellTab: 'chat',         // 'chat' | 'catalog' | 'runs' | 'settings'
+  // shellTab decides which project page is rendered in the main area:
+  //   'chat'          — the conversation surface + ArtifactsPanel
+  //   'catalog'       — catalog browser
+  //   'runs'          — agent runs
+  //   'memory'        — project memory
+  //   'settings'      — project settings
+  //   'ingestion'     — dedicated ingestion page (sources / live run / sample)
+  //   'transformation'— dedicated transformation page (silver layers / PR)
+  shellTab: 'chat',
   sessionId: 'first-run',   // active session
-  artifactView: null,       // 'connections' | 'ingestion' | 'sample' | 'silver' | 'code' | 'sql' | 'pr' | 'production' | 'context' | 'gitconnect' | null
-  artifactTab: 'ingestion', // 'ingestion' | 'transformation' | 'code' | 'sql' | 'context'
+  artifactView: null,       // 'silver-plan' | 'silver-code' | 'ingestion-status' | 'sample' | 'pr' | 'code' | 'sql' | 'context' | null
+                            // ('sources' and 'gitconnect' are wizard kinds, not side-panel views — see shell.wizardOpen)
+  // artifactTab / artifactPinned are retained for backwards compatibility with
+  // older callers — the single-artifact panel no longer reads them.
+  artifactTab: 'context',
   artifactPinned: false,
   // Remembers the last view shown so the side-panel toggle in the chat header can
   // reopen what the user was looking at most recently.
   lastArtifactView: null,
   lastArtifactTab: null,
-  chatTurns: [],            // {id, role: 'walt'|'user'|'system', body, chip?}
+  // Overlay modals that float over the chat (or the project page). 'sources' is
+  // the multi-step source-configuration wizard.
+  wizardOpen: null,         // null | 'sources'
+  chatTurns: [],            // {id, role: 'walt'|'user'|'system'|'task', body, chip?, steps?, ...}
   // Composer suggestion chips — when non-empty, shown above the textarea. Chips are
   // toggleable selections that the user can pick + edit before sending.
   composerSuggestions: [],  // [{ id, label }]
@@ -201,6 +215,12 @@ const initialShellState = {
   silverStageStatus: { s1: 'idle', s2: 'idle', s3: 'idle' }, // each: idle | running | review | approved
   // Awaiting an explicit confirm step inside an artifact (e.g. git remote setup).
   awaitingArtifactConfirm: '',
+  // Synthetic choice request. When an artifact UI (e.g. the CodeArtifact
+  // Approve/Request-changes bar) wants to advance the autoplay as if the user
+  // had clicked one of the chat pills, it sets this. The chat column watches
+  // for the value, looks up the matching turn + choice in FIRST_RUN_SCRIPT,
+  // dispatches the existing onChoice handler, and then clears the request.
+  pendingChoice: null,       // null | { turnId, choiceId }
 };
 
 const Ctx = React.createContext(null);
@@ -339,6 +359,24 @@ function reducer(state, action) {
     case 'setActiveProjectId': {
       return { ...state, ctx: { ...state.ctx, activeProjectId: action.id || '' } };
     }
+    case 'openWizard': {
+      return { ...state, shell: { ...state.shell, wizardOpen: action.kind || 'sources' } };
+    }
+    case 'closeWizard': {
+      return { ...state, shell: { ...state.shell, wizardOpen: null } };
+    }
+    case 'requestChoice': {
+      return {
+        ...state,
+        shell: {
+          ...state.shell,
+          pendingChoice: { turnId: action.turnId, choiceId: action.choiceId },
+        },
+      };
+    }
+    case 'clearPendingChoice': {
+      return { ...state, shell: { ...state.shell, pendingChoice: null } };
+    }
     default:
       return state;
   }
@@ -375,6 +413,10 @@ export function PhaseProvider({ children, initialPhase = 'login' }) {
     setAwaitingArtifactConfirm: (key) => dispatch({ type: 'setAwaitingArtifactConfirm', key }),
     dismissNotification: (id) => dispatch({ type: 'dismissNotification', id }),
     setActiveProjectId: (id) => dispatch({ type: 'setActiveProjectId', id }),
+    openWizard: (kind = 'sources') => dispatch({ type: 'openWizard', kind }),
+    closeWizard: () => dispatch({ type: 'closeWizard' }),
+    requestChoice: (turnId, choiceId) => dispatch({ type: 'requestChoice', turnId, choiceId }),
+    clearPendingChoice: () => dispatch({ type: 'clearPendingChoice' }),
   }), [state]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

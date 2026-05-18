@@ -180,7 +180,7 @@ function NextSteps() {
   const STEPS = [
     { icon: 'cloud',  title: 'Connect sources',  desc: 'Walt mirrors them into bronze with PII masked.' },
     { icon: 'table',  title: 'Pull a sample',    desc: 'A 30-day slice so you can eyeball the contracts.' },
-    { icon: 'wand',   title: 'Build silver',     desc: 'Transformer agent runs dedup · type-cast · standardise.' },
+    { icon: 'wand',   title: 'Build silver',     desc: 'Transformer agent runs dedup · type-cast · cleanse.' },
   ];
   return (
     <div style={{

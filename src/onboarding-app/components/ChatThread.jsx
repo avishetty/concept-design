@@ -39,6 +39,7 @@ function Turn({ turn, onChoice, isLast }) {
   if (turn.role === 'user')     return <UserTurn turn={turn}/>;
   if (turn.role === 'agent')    return <AgentTurn turn={turn}/>;
   if (turn.role === 'progress') return <ProgressTurn turn={turn}/>;
+  if (turn.role === 'task')     return <TaskTurn turn={turn} onChoice={onChoice} isLast={isLast}/>;
   return <WaltTurn turn={turn} onChoice={onChoice} isLast={isLast}/>;
 }
 
@@ -54,9 +55,20 @@ function WaltTurn({ turn, onChoice, isLast }) {
             fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.65,
           }}>{line}</div>
         ))}
-        {turn.chip && (
+        {/* A turn can have one chip (`turn.chip`) or several (`turn.chips`). Both
+            render in a single horizontal strip so they read like one row of
+            affordances rather than back-to-back avatars. */}
+        {(turn.chips || (turn.chip ? [turn.chip] : [])).length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            <ArtifactChip view={turn.chip.view} label={turn.chip.label} hint={turn.chip.hint}/>
+            {(turn.chips || [turn.chip]).map((c, idx) => (
+              <ArtifactChip
+                key={c.view || c.wizard || idx}
+                view={c.view}
+                wizard={c.wizard}
+                label={c.label}
+                hint={c.hint}
+              />
+            ))}
           </div>
         )}
         {turn.choices && isLast && (
@@ -321,6 +333,201 @@ function ProgressStep({ step, state, accent }) {
         </div>
       )}
     </div>
+  );
+}
+
+// TaskTurn — single chat bubble that represents one agent work cycle. Walt
+// stays the orchestrator voice: the intro / outro lines render with Walt's
+// avatar, while the agent's identity appears only as a subtle label on the
+// progress strip (no separate avatar bubble per sub-step).
+//
+// Shape (additive on top of WaltTurn):
+//   {
+//     role: 'task',
+//     body:    [...]              // optional intro lines, rendered as Walt
+//     agent:   'ingestor' | ...   // primary agent responsible
+//     subLabel:'raw-landing-agent'// optional sub-agent label
+//     title:   'Mirroring sources into bronze'
+//     steps:   [...]              // ProgressTurn steps
+//     stepMs:  800                // optional override
+//     outro:   [...lines]         // optional lines shown once progress finishes
+//     chip:    { view, label, hint }   // optional artifact pill
+//     choices: [...]              // optional reply pills
+//     gated:   boolean            // when true, outro/chip/choices wait for
+//                                 //   progress completion (default true)
+//   }
+function TaskTurn({ turn, onChoice, isLast }) {
+  const steps  = turn.steps || [];
+  const stepMs = turn.stepMs || 800;
+  const startAt = turn.playedAt || 0;
+  const total = steps.length;
+  const gated = turn.gated !== false; // default true
+
+  const computeIdx = React.useCallback(() => {
+    if (!startAt) return total;
+    const elapsed = Date.now() - startAt;
+    return Math.max(0, Math.min(total, Math.floor(elapsed / stepMs)));
+  }, [startAt, stepMs, total]);
+  const [idx, setIdx] = React.useState(computeIdx);
+  React.useEffect(() => {
+    if (idx >= total) return;
+    const t = setInterval(() => {
+      const next = computeIdx();
+      setIdx(next);
+      if (next >= total) clearInterval(t);
+    }, PROGRESS_TICK_MS);
+    return () => clearInterval(t);
+  }, [idx, total, computeIdx]);
+
+  const agent = AGENTS[turn.agent] || AGENTS.transformer;
+  const allDone = total === 0 || idx >= total;
+  // Outro / chip / choices reveal only when work finishes (so the bubble feels
+  // like one continuous task rather than several disconnected updates).
+  const showTail = !gated || allDone;
+
+  return (
+    <div className="walt-rise-in" style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+      <div style={{ flexShrink: 0, marginTop: -2, width: 28, height: 28 }}>
+        <Walt size={28} thinking={!allDone}/>
+      </div>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Intro — Walt's voice */}
+        {(turn.body || []).map((line, i) => (
+          <div key={'b' + i} style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.65 }}>{line}</div>
+        ))}
+
+        {/* Agent strip (no avatar — just a subtle label) + progress steps */}
+        {total > 0 && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 8,
+            padding: '10px 12px',
+            background: 'var(--bg-app)',
+            border: '1px solid var(--border-subtle)',
+            borderLeft: `3px solid ${agent.color}`,
+            borderRadius: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                width: 18, height: 18, borderRadius: 999,
+                background: agent.soft, color: agent.color,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <Icon name={agent.icon} size={10} color={agent.color}/>
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: agent.color }}>{agent.name}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {turn.title || agent.role}</span>
+              {turn.subLabel && (
+                <span className="walt-mono" style={{
+                  fontSize: 10, padding: '1px 6px', borderRadius: 4,
+                  background: 'var(--bg-inset)', color: 'var(--text-muted)',
+                }}>{turn.subLabel}</span>
+              )}
+              <div style={{ flex: 1 }}/>
+              {!allDone ? (
+                <span style={{
+                  fontSize: 10.5, fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  padding: '1px 7px', borderRadius: 999,
+                  background: 'var(--bg-inset)',
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                }}>
+                  <span className="walt-dot run" style={{ width: 6, height: 6 }}/>
+                  working
+                </span>
+              ) : (
+                <span style={{
+                  fontSize: 10.5, fontWeight: 600,
+                  color: 'var(--status-ok)',
+                  padding: '1px 7px', borderRadius: 999,
+                  background: 'rgba(63,143,63,0.10)',
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                }}>
+                  <Icon name="check" size={9} color="var(--status-ok)"/>
+                  done
+                </span>
+              )}
+            </div>
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: 2,
+              paddingLeft: 2,
+            }}>
+              {steps.map((s, i) => {
+                const state = i < idx ? 'done' : i === idx ? 'running' : 'queued';
+                return <ProgressStep key={s.id || i} step={s} state={state} accent={agent.color}/>;
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Outro / chip / choices — gated behind progress completion */}
+        {showTail && (turn.outro || []).map((line, i) => (
+          <div key={'o' + i} className="walt-rise-in" style={{
+            fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.65,
+          }}>{line}</div>
+        ))}
+        {showTail && (turn.chips || (turn.chip ? [turn.chip] : [])).length > 0 && (
+          <div className="walt-rise-in" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {(turn.chips || [turn.chip]).map((c, idx) => (
+              <ArtifactChip
+                key={c.view || c.wizard || idx}
+                view={c.view}
+                wizard={c.wizard}
+                label={c.label}
+                hint={c.hint}
+              />
+            ))}
+          </div>
+        )}
+        {showTail && turn.choices && isLast && (
+          <div className="walt-rise-in" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 2 }}>
+            {turn.choices.map((c, idx2) => (
+              <ChoiceButton key={c.id || c.label} c={c} index={idx2} onClick={() => onChoice && onChoice(c, turn)}/>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Factored choice pill so WaltTurn + TaskTurn share styling. The hover state
+// matches the original WaltTurn implementation exactly.
+function ChoiceButton({ c, index, onClick }) {
+  return (
+    <button
+      className="walt-stagger-in"
+      style={{
+        '--i': index,
+        padding: '7px 14px',
+        borderRadius: 999,
+        border: '1px solid var(--border-default)',
+        background: 'var(--bg-surface)',
+        cursor: 'pointer',
+        fontSize: 12.5,
+        color: 'var(--text-primary)',
+        fontFamily: 'var(--font-sans)',
+        fontWeight: 500,
+        transition: 'background .16s ease, border-color .16s ease, color .16s ease, transform .16s cubic-bezier(.22,.61,.36,1), box-shadow .16s ease',
+      }}
+      onClick={onClick}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'var(--accent-soft)';
+        e.currentTarget.style.borderColor = 'var(--accent)';
+        e.currentTarget.style.color = 'var(--accent)';
+        e.currentTarget.style.transform = 'translateY(-1px)';
+        e.currentTarget.style.boxShadow = '0 2px 8px rgba(94,106,210,0.10)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'var(--bg-surface)';
+        e.currentTarget.style.borderColor = 'var(--border-default)';
+        e.currentTarget.style.color = 'var(--text-primary)';
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.boxShadow = 'none';
+      }}
+    >
+      {c.label}
+    </button>
   );
 }
 

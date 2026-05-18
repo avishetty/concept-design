@@ -4,15 +4,16 @@ import { usePhase } from '../state.jsx';
 import { AgentAvatar } from '../components/AgentBadge.jsx';
 
 const FILES = [
-  { kind: 'A', path: 'silver/s1_dedup/finance_ap_invoices.sql',         added: 28, removed: 0 },
-  { kind: 'A', path: 'silver/s1_dedup/finance_ar_invoices.sql',         added: 32, removed: 0 },
-  { kind: 'A', path: 'silver/s1_dedup/finance_gl_journal_entries.sql',  added: 41, removed: 0 },
-  { kind: 'A', path: 'silver/s2_typecast/finance_ap_invoices.sql',      added: 39, removed: 0 },
-  { kind: 'A', path: 'silver/s2_typecast/finance_ar_invoices.sql',      added: 46, removed: 0 },
-  { kind: 'A', path: 'silver/s3_standardise/finance_ap_invoices.sql',   added: 34, removed: 0 },
-  { kind: 'A', path: 'silver/s3_standardise/finance_ar_invoices.sql',   added: 38, removed: 0 },
-  { kind: 'A', path: 'tests/silver/test_dedup_grain.yaml',              added: 14, removed: 0 },
-  { kind: 'A', path: 'tests/silver/test_quarantine_routes.yaml',        added: 22, removed: 0 },
+  { kind: 'A', path: 'silver/s1_dedup/finance_ap_invoices.sql',         added: 48, removed: 0 },
+  { kind: 'A', path: 'silver/s1_dedup/finance_ar_invoices.sql',         added: 51, removed: 0 },
+  { kind: 'A', path: 'silver/s1_dedup/finance_gl_journal_entries.sql',  added: 56, removed: 0 },
+  { kind: 'A', path: 'silver/s2_typecast/finance_ap_invoices.sql',      added: 62, removed: 0 },
+  { kind: 'A', path: 'silver/s2_typecast/finance_ar_invoices.sql',      added: 64, removed: 0 },
+  { kind: 'A', path: 'silver/s3_cleanse/finance_ap_invoices.sql',       added: 71, removed: 0 },
+  { kind: 'A', path: 'silver/s3_cleanse/finance_ar_invoices.sql',       added: 73, removed: 0 },
+  { kind: 'A', path: 'tests/silver/test_dedup_grain.yaml',              added: 22, removed: 0 },
+  { kind: 'A', path: 'tests/silver/test_quarantine_routes.yaml',        added: 34, removed: 0 },
+  { kind: 'A', path: 'tests/silver/test_cleanse_rules.yaml',            added: 28, removed: 0 },
   { kind: 'A', path: 'policies/pii/finance_vendors.yaml',               added: 9,  removed: 0 },
   { kind: 'M', path: 'walt.yaml',                                       added: 6,  removed: 1 },
 ];
@@ -27,17 +28,31 @@ const CHECKS = [
 ];
 
 const COMMITS = [
-  { hash: '9af3c1d', msg: 'silver/s1_dedup · finance_* dedup views (Transformer)', author: 'walt-bot', at: '2 min ago' },
-  { hash: '7b80c4e', msg: 'silver/s2_typecast · finance_* type-cast views (Transformer)', author: 'walt-bot', at: '8 min ago' },
-  { hash: '4e21f9a', msg: 'silver/s3_standardise · finance_* standardised views (Transformer)', author: 'walt-bot', at: '12 min ago' },
-  { hash: '1c0aa55', msg: 'add quarantine route for amount cast failures', author: 'walt-bot · review-fix', at: '14 min ago' },
-  { hash: 'd91e6c0', msg: 'walt.yaml · register reviewer attestations', author: 'walt-bot', at: '15 min ago' },
+  { hash: '9af3c1d', msg: 'silver/s1_dedup · finance_* dedup views + _s1_quarantine (dedup-builder-agent)', author: 'walt-bot', at: '2 min ago' },
+  { hash: '7b80c4e', msg: 'silver/s2_typecast · finance_* type-cast views + _s2_quarantine (type-cast-builder-agent)', author: 'walt-bot', at: '8 min ago' },
+  { hash: '4e21f9a', msg: 'silver/s3_cleanse · finance_* cleanse views + _s3_quarantine (cleanse-builder-agent)', author: 'walt-bot', at: '12 min ago' },
+  { hash: '1c0aa55', msg: "extend boolean normalisation map ('Y/N') + route mandatory cast failures to _s2_quarantine", author: 'walt-bot · review-fix', at: '14 min ago' },
+  { hash: 'd91e6c0', msg: 'walt.yaml · register reviewer attestations (promotion gate)', author: 'walt-bot', at: '15 min ago' },
 ];
 
 export function PullRequestArtifact() {
-  const { ctx, set } = usePhase();
+  const { ctx, set, addTurn } = usePhase();
   const merged = ctx.prMerged;
   const branch = ctx.branch || 'main';
+
+  // Single entry point for the Commit button so we can echo a user turn into
+  // the chat alongside flipping ctx.prMerged. The echo prevents the chat from
+  // showing two Walt avatars in a row (pr-opened → pr-merged) with no visible
+  // user action between them.
+  const onCommit = () => {
+    if (merged) return;
+    set({ prMerged: true });
+    addTurn({
+      id: 'u-pr-commit-' + Date.now(),
+      role: 'user',
+      body: ['Committed PR #' + (ctx.prNumber || '')],
+    });
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: 'var(--bg-surface)' }}>
@@ -55,7 +70,7 @@ export function PullRequestArtifact() {
         <div style={{ flex: 1 }}/>
         <button
           className="walt-btn primary"
-          onClick={() => set({ prMerged: true })}
+          onClick={onCommit}
           disabled={merged}
           title={merged ? 'Committed. Promotion to production is a separate step in chat.' : 'Commit this PR into ' + branch}
           style={{ opacity: merged ? 0.55 : 1, padding: '6px 12px', fontSize: 12 }}
@@ -69,7 +84,7 @@ export function PullRequestArtifact() {
         <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3 }}>
-              feat(silver): finance domain — dedup, type-cast, standardise (S1 → S2 → S3)
+              feat(silver): finance domain — dedup, type-cast, cleanse (S1 → S2 → S3)
               <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> #{ctx.prNumber}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>

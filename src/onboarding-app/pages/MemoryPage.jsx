@@ -9,7 +9,7 @@ import { AgentAvatar } from '../components/AgentBadge.jsx';
 // chat-flow state (domain locked, sources picked, silver approvals, PR merged),
 // so it stays in lockstep with whatever Vincent has done.
 export function MemoryPage() {
-  const { ctx, openArtifact } = usePhase();
+  const { ctx, openArtifact, openWizard } = usePhase();
   const decisions = buildDecisions(ctx);
 
   return (
@@ -37,7 +37,7 @@ export function MemoryPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {decisions.map(d => (
-                  <DecisionCard key={d.id} decision={d} openArtifact={openArtifact}/>
+                  <DecisionCard key={d.id} decision={d} openArtifact={openArtifact} openWizard={openWizard}/>
                 ))}
               </div>
             )}
@@ -89,7 +89,7 @@ function buildDecisions(ctx) {
   }
   ['s1', 's2', 's3'].forEach((stage, i) => {
     if (ctx.silverApproved?.[stage]) {
-      const labels = { s1: 'Dedup', s2: 'Type-cast', s3: 'Standardise' };
+      const labels = { s1: 'Deduplication', s2: 'Type-cast', s3: 'Cleanse' };
       out.push({
         id: `silver-${stage}`,
         agent: 'transformer',
@@ -117,13 +117,23 @@ function buildDecisions(ctx) {
       title: 'Git remote connected',
       body: `Working copy now tracks ${ctx.gitRemote}. Walt will branch + open PRs against ${ctx.branch} from here on out.`,
       when: 'just now',
-      action: { label: 'Git settings', view: 'gitconnect', tab: 'context' },
+      // Git is configuration, so the action opens the same modal wizard used in
+      // the chat — never the side panel.
+      action: { label: 'Reconfigure remote', wizard: 'gitconnect' },
     });
   }
   return out.reverse(); // newest at top
 }
 
-function DecisionCard({ decision: d, openArtifact }) {
+function DecisionCard({ decision: d, openArtifact, openWizard }) {
+  const onAction = () => {
+    if (!d.action) return;
+    if (d.action.wizard) {
+      openWizard(d.action.wizard);
+    } else if (d.action.view) {
+      openArtifact(d.action.view, d.action.tab);
+    }
+  };
   return (
     <div style={{
       background: 'var(--bg-surface)',
@@ -147,7 +157,7 @@ function DecisionCard({ decision: d, openArtifact }) {
         </div>
         {d.action && (
           <button
-            onClick={() => openArtifact(d.action.view, d.action.tab)}
+            onClick={onAction}
             className="walt-btn ghost sm"
             style={{ fontSize: 11, marginTop: 8, padding: '3px 9px' }}
           >

@@ -17,7 +17,7 @@ export const AGENTS = {
     icon: 'wand',
     color: 'var(--semantic)',
     soft: 'var(--semantic-soft)',
-    summary: 'Dedup, type-cast, standardise. Builds dims, facts, aggregates with reviewer gates.',
+    summary: 'Dedup, type-cast, cleanse. Builds dims, facts, aggregates with reviewer gates.',
   },
   reasoner: {
     key: 'reasoner',
@@ -71,9 +71,9 @@ export const SUB_AGENTS = {
     parent: 'transformer',
   },
   s3: {
-    builder: 'standardisation-builder-agent',
-    reviewer: 'standardisation-reviewer-agent',
-    label: 'Silver S3 · Standardisation',
+    builder: 'cleanse-builder-agent',
+    reviewer: 'cleanse-reviewer-agent',
+    label: 'Silver S3 · Cleanse',
     parent: 'transformer',
   },
   g1Dim: {

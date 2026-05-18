@@ -2,56 +2,72 @@ import React from 'react';
 import { Icon } from '../../lib/components.jsx';
 import { usePhase } from '../state.jsx';
 
-// Inline affordance rendered inside a chat message to open / focus an artifact view
-// in the side panel. Behaves like a chip: hoverable, keyboard-focusable, communicates
-// what will happen ("View live progress", "Open silver build", etc.).
+// Inline affordance rendered inside a chat message. Chips never navigate the
+// user out of the chat — they either:
+//   • open an artifact in the side panel (`view: '...'`), or
+//   • open a modal wizard over the chat (`wizard: 'sources' | ...`).
+//
+// View token reference (chat → side-panel ArtifactsPanel):
+//   silver-plan      — PlanArtifact (focused plan for the active silver stage)
+//   silver-code      — CodeArtifact (read-only review surface, no buttons)
+//   ingestion-status — IngestionStatusArtifact (current ingest run + table profile)
+//   sample           — SamplePreviewArtifact
+//   pr               — PullRequestArtifact
+//   code | sql | context — persistent views surfaced from the side-panel overflow menu
+//
+// Configuration UIs (sources, gitconnect) live in modal wizards (WIZARD_META)
+// instead of the side panel — the side panel is for consuming information, not
+// configuring the project.
 const VIEW_LABEL = {
-  connections: 'Sources & destinations',
-  ingestion:   'Live ingestion',
-  sample:      'Sample preview',
-  silver:      'Silver build',
-  pr:          'Pull request',
-  production:  'Production dashboard',
-  code:        'Repo',
-  sql:         'SQL editor',
-  context:     'Context',
+  'silver-plan':      'Silver layer plan',
+  'silver-code':      'Silver layer code',
+  'ingestion-status': 'Ingestion run',
+  sample:             'Sample preview',
+  pr:                 'Pull request',
+  code:               'Repo',
+  sql:                'SQL editor',
+  context:            'Context',
 };
 
 const VIEW_ICON = {
-  connections: 'pipe',
-  ingestion:   'download',
-  sample:      'table',
-  silver:      'layers',
-  pr:          'git',
-  production:  'rocket',
-  code:        'code',
-  sql:         'terminal',
-  context:     'book',
+  'silver-plan':      'layers',
+  'silver-code':      'code',
+  'ingestion-status': 'download',
+  sample:             'table',
+  pr:                 'git',
+  code:               'code',
+  sql:                'terminal',
+  context:            'book',
 };
 
-const VIEW_TAB = {
-  connections: 'ingestion',
-  ingestion:   'ingestion',
-  sample:      'ingestion',
-  production:  'ingestion',
-  silver:      'transformation',
-  pr:          'transformation',
-  code:        'code',
-  sql:         'sql',
-  context:     'context',
+// Modal wizards — chips with `wizard: '<key>'` open these instead of routing
+// to the side panel.
+const WIZARD_META = {
+  sources:    { label: 'Set up sources',     icon: 'db'  },
+  gitconnect: { label: 'Connect git remote', icon: 'git' },
 };
 
-export function ArtifactChip({ view, label, icon, hint, kind = 'default' }) {
-  const { openArtifact, shell } = usePhase();
+export function ArtifactChip({ view, wizard, label, icon, hint }) {
+  const { openArtifact, openWizard, shell } = usePhase();
   const [hover, setHover] = React.useState(false);
-  const active = shell.artifactView === view;
-  const iconName = icon || VIEW_ICON[view] || 'sparkle';
-  const text = label || VIEW_LABEL[view] || 'Open artifact';
+
+  const isWizard = !!wizard;
+  const active   = !isWizard && shell.artifactView === view;
+  const iconName = icon || (isWizard ? (WIZARD_META[wizard]?.icon || 'sparkle') : (VIEW_ICON[view] || 'sparkle'));
+  const text     = label || (isWizard ? (WIZARD_META[wizard]?.label || 'Open') : (VIEW_LABEL[view] || 'Open artifact'));
+
+  const onClick = () => {
+    if (isWizard) {
+      openWizard(wizard);
+    } else if (view) {
+      openArtifact(view);
+    }
+  };
 
   return (
     <button
       className="walt-pop-in"
-      onClick={() => openArtifact(view, VIEW_TAB[view])}
+      onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{

@@ -8,7 +8,7 @@ select
   count(*)                        as invoices,
   sum(amount)                     as total_amount,
   sum(amount) filter (where status = 'open') as open_amount
-from silver.s3_standardise.finance_ap_invoices
+from silver.s3_cleanse.finance_ap_invoices_valid
 where issue_date >= dateadd(month, -6, current_date)
 group by 1
 order by 1 desc;`;

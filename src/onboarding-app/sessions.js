@@ -127,6 +127,16 @@ const DOMAIN_CHOICES = DOMAINS.map(d => ({
 }));
 
 // First-run scripted thread. Linear by default; choices can `next: '<id>'` to branch.
+//
+// Authoring rule (turn-clarity): every Walt-led bubble must be followed by a user
+// action before the next Walt bubble. A user "action" is any of:
+//   - a choice pill click (echoed by onChoice in PlatformShell),
+//   - a composer send (echoed by onSendUserText),
+//   - an artifact action that echoes a user turn (wizard finish, git connect,
+//     PR commit). See SourceWizard / GitConnectWizard / PullRequestArtifact.
+// Walt's avatar should appear exactly once per turn — *never* twice in a row
+// without a user bubble in between. When in doubt, fold the second message into
+// the first turn's body / outro instead of adding a new walt turn.
 export const FIRST_RUN_SCRIPT = [
   {
     id: 'w-domain',
@@ -148,199 +158,240 @@ export const FIRST_RUN_SCRIPT = [
     ],
     composerSuggestionsByDomain: true,
   },
-  // After the user sends from the composer, autoplay adds their text as a user turn
-  // and continues from here:
-  {
-    id: 'w-scope-locked',
-    role: 'walt',
-    body: [
-      "Scope is locked. Before I can answer any of that, I need to know where your {{domain}} data actually lives — which source systems Walt should mirror into bronze.",
-    ],
-  },
 
-  // ---- Source picker: pill opens the catalog in the panel, chat pauses until the
-  //      user confirms a selection. Pre-selects recommended sources for the domain. ----
+  // ---- Source picker: chip opens the in-chat SourceWizard modal. Chat pauses
+  //      until the wizard's "Finish" step clears the awaitConfirm gate; the
+  //      wizard's finish also echoes a user turn so the alternation holds. ----
+  //      (Used to be split across w-scope-locked + w-sources-pick — merged into
+  //       a single Walt bubble so we don't show the avatar twice in a row.)
   {
     id: 'w-sources-pick',
     role: 'walt',
     body: [
-      "I've pre-selected the sources {{domain}} teams usually pull from. Open the catalog, adjust the list, then confirm — Walt will mirror them into bronze, mask PII, and profile the tables as data lands.",
+      "Scope is locked. Before I can answer any of that, I need to know where your {{domain}} data actually lives — which source systems Walt should mirror into bronze.",
+      "I've pre-selected the sources {{domain}} teams usually pull from. Open the wizard, adjust the list, give Walt credentials, sample, and pick a schedule — I'll start mirroring as soon as you finish.",
     ],
-    chip: { view: 'connections', label: 'Configure your source', hint: 'Pick what to ingest' },
-    action: { type: 'openArtifact', view: 'connections', tab: 'ingestion' },
+    chip: { wizard: 'sources', label: 'Set up sources', hint: 'Open the source wizard' },
     awaitConfirm: 'sources',
   },
 
-  // ---- Ingestion: pill appears, chat pauses until ingestion completes ----
+  // ---- Ingestion: one consolidated task bubble. Walt's avatar, the Ingestor
+  //      progress strip, the "bronze is ready" close-out, AND the "what next"
+  //      choices all live in this single bubble. Used to be task-ingest +
+  //      w-ingest-done — merged so we don't double-up the avatar. The next
+  //      walt avatar fires only after the user clicks a choice. ----
+  //      Step timing is tuned so progress finishes ~ when the simulated
+  //      ingestion complete timer fires (6 × 1000ms ≈ 6000ms in PlatformShell).
   {
-    id: 'w-ingest-start',
-    role: 'walt',
-    body: [
-      "Mirroring your sources into bronze now. Walt's profiling each table — sampling rows, detecting types, masking PII, stamping lineage. I'll let you know when it's safe to look at the data.",
-    ],
-    chip: { view: 'ingestion', label: 'Ingestion started', hint: 'View live progress + profile' },
-    action: { type: 'openArtifact', view: 'ingestion', tab: 'ingestion' },
-    startIngestion: true,
-  },
-  // Streaming-style progress trace: each row reveals as the Ingestor builder
-  // walks through tool calls. Step durations are tuned so the trace finishes
-  // roughly when the simulated ingestion timer flips ingestionStatus='complete'
-  // (6000ms in PlatformShell), keeping the panel + chat in sync.
-  {
-    id: 'prg-ingest',
-    role: 'progress',
+    id: 'task-ingest',
+    role: 'task',
     agent: 'ingestor',
+    subLabel: 'raw-landing-agent',
     title: 'Mirroring sources into bronze',
-    stepMs: 950,
-    steps: [
-      { id: 'plan',    icon: 'wand',   label: 'Plan ingestion strategy for {{domain}}', result: '8 source tables · 2 PII candidates' },
-      { id: 'connect', icon: 'db',     label: 'Connect to ERP + GL systems',            result: 'sql-erp01.imageinc.internal · ok' },
-      { id: 'profile', icon: 'eye',    label: 'Profile schemas + nullability',          result: '220 columns · 18 nullable · 3 date' },
-      { id: 'sample',  icon: 'table',  label: 'Sample 10,000 rows per table',           result: 'previews cached' },
-      { id: 'pii',     icon: 'shield', label: 'Detect + mask PII columns',              result: 'vendors.email, customers.phone masked' },
-      { id: 'land',    icon: 'layers', label: 'Materialise to bronze + stamp lineage',  result: '8 tables · _ingested_at, _batch_id' },
-    ],
-  },
-  {
-    id: 'w-ingest-done',
-    role: 'walt',
-    waitForIngestion: true,
     body: [
-      "Ingestion + profile complete. 220 tables landed in bronze, schemas profiled, PII masked, lineage stamped. Review the profile whenever — when you're ready I'll bring Transformer in to build the silver layer.",
+      "On it — mirroring your sources into bronze now. Bronze is append-only: every record lands with full lineage and the raw payload preserved so we can replay anything downstream.",
     ],
-    chip: { view: 'sample', label: 'Sample preview', hint: '5 example tables' },
+    stepMs: 1000,
+    steps: [
+      { id: 'plan',    icon: 'wand',   label: 'Plan ingestion strategy for {{domain}}',  result: '8 source tables · 2 PII candidates' },
+      { id: 'connect', icon: 'db',     label: 'Connect to ERP + GL systems',             result: 'sql-erp01.imageinc.internal · ok' },
+      { id: 'profile', icon: 'eye',    label: 'Profile schemas + nullability',           result: '220 columns · 18 nullable · 3 date' },
+      { id: 'sample',  icon: 'table',  label: 'Sample 10,000 rows per table',            result: 'previews cached' },
+      { id: 'pii',     icon: 'shield', label: 'Detect + mask PII columns',               result: 'vendors.email, customers.phone masked' },
+      { id: 'land',    icon: 'layers', label: 'Land to bronze · append-only + lineage',  result: '_ingested_at · _source · _batch_id · partitioned by _ingestion_date · raw_payload VARIANT' },
+    ],
+    outro: [
+      "Ingestion + profile complete. 220 tables landed in bronze as the system of record — zero transformation, every record preserved, clustered by (_ingestion_date, _source) for replay.",
+      "Bronze is ready. When you're ready I'll bring Transformer in to build the silver layer — or take a moment to review what landed first.",
+    ],
+    chip: { view: 'ingestion-status', label: 'View ingestion run', hint: 'Live progress + table profile' },
     choices: [
       { id: 'start-silver', label: 'Build the silver layer' },
-      { id: 'review-first', label: 'Let me review ingestion first' },
+      { id: 'review-first', label: 'Let me review ingestion first', next: null },
     ],
+    startIngestion: true,
   },
-  // "Let me review" doesn't actually branch in the script — it just yields control;
-  // the next user click on the same row continues. The autoplay treats `noAdvance` as
-  // "stay paused on this turn until a fresh click".
-  // For simplicity we model it as both choices flowing to the same next turn — they
-  // both produce a user turn, only "start-silver" sets the approval flag.
+  // "Let me review" halts autoplay (`next: null`); the user re-engages via the
+  // composer or by reopening the silver flow. "Build silver" flows on to S1.
 
-  // ---- Silver build: S1 → review/approve → S2 → review/approve → S3 → review/approve ----
+  // ---- Silver build: S1 → S2 → S3. Each stage runs as two task bubbles:
+  //      (1) task-sX-plan  — Transformer plans the work. User reviews the plan
+  //                          and explicitly approves before code is written.
+  //      (2) task-sX-build — Transformer writes + tests the code. User reviews
+  //                          the code and explicitly approves before moving on.
+  //      Each task is its own walt-avatar turn with its own user choice at the
+  //      end, so the avatar/user alternation holds. The Transformer's identity
+  //      lives in the task's agent strip (no "Transformer joined the session."
+  //      system row). ----
+  //      Build-phase step timings line up with the simulated build duration
+  //      in PlatformShell.startSilverStage (s1/s3 = 3500ms, s2 = 4500ms) so
+  //      the in-bubble close-out and the CodeArtifact review bar reveal at
+  //      the same time. Plan phases run on their own clock — no real-world
+  //      gate to sync with.
   {
-    id: 'sys-transformer',
-    role: 'system',
+    id: 'task-s1-plan',
+    role: 'task',
     agent: 'transformer',
-    body: ['Transformer joined the session.'],
-  },
-  {
-    id: 'w-s1-plan',
-    role: 'walt',
+    subLabel: 's1-dedup-planner',
+    title: 'Planning S1 · deduplication',
     body: [
-      "Starting S1 · dedup. Deduplicating each bronze source on its declared grain and stamping dedup metadata. Reviewer will check contract, lineage, quarantine, no-bleed, naming, metadata, idempotency.",
+      "Drafting the S1 dedup plan. Each entity needs a declared natural key — I'll pick the key per table, decide how to order survivors (event time vs ingest time), and route null-key rows to _s1_quarantine before any SQL is written.",
     ],
-    chip: { view: 'silver', label: 'S1 plan', hint: 'View S1 details' },
-    action: { type: 'openArtifact', view: 'silver', tab: 'transformation' },
-    startSilverStage: 's1',
-  },
-  // Builder + reviewer trace for S1. Tuned to ~3500ms (matches the simulated
-  // S1 build duration set in PlatformShell).
-  {
-    id: 'prg-s1',
-    role: 'progress',
-    agent: 'transformer',
-    title: 'Building S1 · dedup',
-    stepMs: 650,
+    stepMs: 750,
     steps: [
-      { id: 'keys',    icon: 'wand',   label: 'Pick dedup keys per table',          result: 'invoice_id, customer_id × 2 grains' },
-      { id: 'sql',     icon: 'code',   label: 'Generate dedup SQL',                 result: 'finance_ap_invoices, finance_ar_invoices' },
-      { id: 'run',     icon: 'flow',   label: 'Run on Walt sandbox',                result: '693,127 → 691,642 rows · 1,485 dupes' },
-      { id: 'review',  icon: 'check',  label: 'Reviewer: contract + lineage + idempotency', result: 'parity 99.78% · attested' },
-      { id: 'land',    icon: 'layers', label: 'Stage s1_dedup views',               result: '2 views ready' },
+      { id: 'survey', icon: 'eye',   label: 'Survey bronze for duplicate signatures',      result: '2 entities · ~1,485 dupes · 7 null-key candidates' },
+      { id: 'key',    icon: 'wand',  label: 'Declare natural key per entity',              result: 'invoice_id (ap) · invoice_no + source (ar)' },
+      { id: 'cdc',    icon: 'bolt',  label: 'Plan CDC tombstones + late-arriving rows',    result: 'order by source event ts · _is_deleted preserved' },
+      { id: 'q',      icon: 'shield',label: 'Define _s1_quarantine route',                 result: 'null natural key → quarantine, not dropped' },
+      { id: 'checks', icon: 'check', label: 'Define reviewer assertions',                  result: 'grain unique · lineage · quarantine coverage · idempotent' },
     ],
-  },
-  {
-    id: 'w-s1-review',
-    role: 'walt',
-    waitForSilver: 's1',
-    body: [
-      "S1's ready for review. 1,485 dupes removed across the bronze tables, parity check inside the expected window. Code + checklist in the panel — approve when you're satisfied.",
+    outro: [
+      "S1 plan is ready — natural key per entity, CDC tombstones preserved as _is_deleted records, late-arriving rows reconciled by event time, null keys quarantined. Open the plan, then approve so I can write the code.",
     ],
-    chip: { view: 'silver', label: 'S1 ready for review', hint: 'View code + checks' },
+    chip: { view: 'silver-plan', label: 'View S1 plan', hint: 'Plan-only view · no code yet' },
     choices: [
-      { id: 'approve-s1', label: 'Approve S1', setCtx: { silverApproved: { s1: true, s2: false, s3: false } } },
-      { id: 'changes-s1', label: 'Request changes' },
+      { id: 'approve-s1-plan', label: 'Approve plan',     next: 'task-s1-build' },
+      { id: 'changes-s1-plan', label: 'Request changes', next: null },
     ],
+    setCtx: { silverStage: 's1' },
   },
   {
-    id: 'w-s2-plan',
-    role: 'walt',
-    body: [
-      "Starting S2 · type-cast. Casting each column to its declared type. Any rows that fail cast get routed to a quarantine table so silver stays clean.",
-    ],
-    chip: { view: 'silver', label: 'S2 plan', hint: 'View S2 details' },
-    startSilverStage: 's2',
-  },
-  // Builder + reviewer trace for S2 — narrative includes the "needed two
-  // rounds" reviewer push-back. Tuned to ~4500ms.
-  {
-    id: 'prg-s2',
-    role: 'progress',
+    id: 'task-s1-build',
+    role: 'task',
     agent: 'transformer',
-    title: 'Building S2 · type-cast',
+    subLabel: 's1-dedup-agent',
+    title: 'Building S1 · deduplication',
+    body: [
+      "Plan approved — writing the S1 dedup SQL with CDC awareness, then running it through the reviewer on the Walt sandbox.",
+    ],
     stepMs: 700,
     steps: [
-      { id: 'infer',   icon: 'wand',   label: 'Infer target types (Reasoner)',            result: '18 columns typed · 3 dates · 4 numerics' },
-      { id: 'sql-1',   icon: 'code',   label: 'Generate CAST + quarantine routes',        result: 'round 1' },
-      { id: 'run-1',   icon: 'flow',   label: 'Run typecast on sandbox',                  result: '14 rows failed amount cast' },
-      { id: 'replan',  icon: 'wand',   label: 'Add quarantine.s2 route for failures',     result: 'round 2 · 0 failures' },
-      { id: 'review',  icon: 'check',  label: 'Reviewer: numbers reconcile',              result: 'attested' },
-      { id: 'land',    icon: 'layers', label: 'Stage s2_typecast views',                  result: '2 views ready' },
+      { id: 'sql',    icon: 'code',   label: 'Generate dedup SQL · partition by natural key',  result: 'finance_ap_invoices · finance_ar_invoices' },
+      { id: 'cdc',    icon: 'bolt',   label: 'Wire CDC tombstones (_is_deleted, _deleted_at)', result: '23 DELETE events surfaced as tombstones, not dropped' },
+      { id: 'run',    icon: 'flow',   label: 'Run on Walt sandbox',                            result: '693,127 → 691,642 · 1,485 dupes · 7 null keys → _s1_quarantine' },
+      { id: 'review', icon: 'check',  label: 'Reviewer: grain · lineage · quarantine cover',   result: 'parity 99.78% · attested in DDL header' },
+      { id: 'land',   icon: 'layers', label: 'Stage _s1_valid + _s1_quarantine views',         result: '4 views ready · valid + quarantine pair per entity' },
     ],
+    outro: [
+      "1,485 dupes removed, 7 null-key rows routed to _s1_quarantine, 23 CDC tombstones preserved as _is_deleted records. Reviewer attestation is in the view DDL header — the promotion gate's clear. Code's ready — open it, then approve when you're happy.",
+    ],
+    chip: { view: 'silver-code', label: 'Review S1 code', hint: 'Open code + approve in chat' },
+    choices: [
+      { id: 'approve-s1', label: 'Approve S1', setCtx: { silverApproved: { s1: true, s2: false, s3: false } } },
+      { id: 'changes-s1', label: 'Request changes', next: null },
+    ],
+    startSilverStage: 's1',
+  },
+
+  {
+    id: 'task-s2-plan',
+    role: 'task',
+    agent: 'transformer',
+    subLabel: 's2-typecast-planner',
+    title: 'Planning S2 · type-cast',
+    body: [
+      "Drafting the S2 type-cast plan. I'll mark each column mandatory or optional from the contract, define the boolean normalisation map, and route mandatory-cast failures to _s2_quarantine. Cast failures are schema contract violations, not DQ issues — they get their own remediation path.",
+    ],
+    stepMs: 750,
+    steps: [
+      { id: 'contracts', icon: 'eye',   label: 'Read declared types from silver contract',    result: '18 cols · 3 dates · 4 NUMERIC(18,4) · 2 boolean' },
+      { id: 'mandatory', icon: 'shield',label: 'Mark mandatory vs optional columns',          result: 'mandatory failure → quarantine · optional → NULL + flag' },
+      { id: 'boolean',   icon: 'wand',  label: 'Define boolean normalisation map',            result: "true/1/y/yes/on  ·  false/0/n/no/off  ·  else quarantine" },
+      { id: 'dates',     icon: 'bolt',  label: 'Resolve ambiguous date formats per source',   result: 'MM/DD/YYYY declared in entity config · no auto-detect' },
+      { id: 'checks',    icon: 'check', label: 'Define reviewer assertions',                  result: 'cast contract · quarantine cover · idempotency' },
+    ],
+    outro: [
+      "S2 plan is ready — money lands as NUMERIC(18,4) (never FLOAT), booleans normalised before TRY_CAST, and every mandatory cast routes to _s2_quarantine on failure. S2 stays a view so G1 is the single materialisation point downstream. Approve the plan to write the code.",
+    ],
+    chip: { view: 'silver-plan', label: 'View S2 plan', hint: 'Plan-only view · no code yet' },
+    choices: [
+      { id: 'approve-s2-plan', label: 'Approve plan',     next: 'task-s2-build' },
+      { id: 'changes-s2-plan', label: 'Request changes', next: null },
+    ],
+    setCtx: { silverStage: 's2' },
   },
   {
-    id: 'w-s2-review',
-    role: 'walt',
-    waitForSilver: 's2',
+    id: 'task-s2-build',
+    role: 'task',
+    agent: 'transformer',
+    subLabel: 's2-typecast-agent',
+    title: 'Building S2 · type-cast',
     body: [
-      "S2's ready — needed two rounds. Reviewer caught 14 rows failing the amount cast, builder added quarantine.s2 route on round 2. Numbers reconcile.",
+      "Plan approved — writing TRY_CAST SQL with quarantine routes for mandatory failures, then running it through the reviewer.",
     ],
-    chip: { view: 'silver', label: 'S2 ready for review', hint: 'View code + checks' },
+    stepMs: 750,
+    steps: [
+      { id: 'sql-1',  icon: 'code',   label: 'Generate TRY_CAST + mandatory routing',           result: 'round 1 · _cast_passed + _cast_failure_reason' },
+      { id: 'run-1',  icon: 'flow',   label: 'Run on sandbox',                                  result: '14 amount TRY_CAST failures · 2 unrecognised boolean values' },
+      { id: 'replan', icon: 'wand',   label: 'Wire _s2_quarantine for mandatory failures',      result: "round 2 · 'Y/N' added to boolean map" },
+      { id: 'review', icon: 'check',  label: 'Reviewer: cast contract reconciles',              result: '0 mandatory failures · attested in DDL header' },
+      { id: 'land',   icon: 'layers', label: 'Stage _s2_valid + _s2_quarantine views',          result: '4 views ready · cast contract enforced' },
+    ],
+    outro: [
+      "Two rounds — reviewer caught 14 amount TRY_CAST failures and 2 unrecognised boolean values, builder routed mandatory ones to _s2_quarantine on round 2 and extended the boolean map to cover 'Y/N'. Cast contract reconciles. Approve when you're satisfied.",
+    ],
+    chip: { view: 'silver-code', label: 'Review S2 code', hint: 'Open code + approve in chat' },
     choices: [
       { id: 'approve-s2', label: 'Approve S2', setCtx: { silverApproved: { s1: true, s2: true, s3: false } } },
-      { id: 'changes-s2', label: 'Request changes' },
+      { id: 'changes-s2', label: 'Request changes', next: null },
     ],
+    startSilverStage: 's2',
   },
+
   {
-    id: 'w-s3-plan',
-    role: 'walt',
-    body: [
-      "Starting S3 · standardise. Standardising currencies, IDs, and units. ~60 silver views will be staged on a feature branch when reviewer attests.",
-    ],
-    chip: { view: 'silver', label: 'S3 plan', hint: 'View S3 details' },
-    startSilverStage: 's3',
-  },
-  // Builder + reviewer trace for S3. Tuned to ~3500ms.
-  {
-    id: 'prg-s3',
-    role: 'progress',
+    id: 'task-s3-plan',
+    role: 'task',
     agent: 'transformer',
-    title: 'Building S3 · standardise',
-    stepMs: 650,
-    steps: [
-      { id: 'fx',      icon: 'cloud',  label: 'Load FX rates + unit standards',           result: 'USD / EUR / JPY · 2026-05-12' },
-      { id: 'sql',     icon: 'code',   label: 'Add amount_usd, is_overdue, normalise IDs', result: 'round 1' },
-      { id: 'run',     icon: 'flow',   label: 'Run standardise on sandbox',               result: '~60 views built' },
-      { id: 'review',  icon: 'check',  label: 'Reviewer: standardisation passes',         result: 'attested · cleared round 1' },
-      { id: 'land',    icon: 'layers', label: 'Stage on feature branch',                  result: 'silver/finance · ready' },
+    subLabel: 's3-cleanse-planner',
+    title: 'Planning S3 · cleanse',
+    body: [
+      "Drafting the S3 cleanse plan. After dedup and type-cast, values can still be semantically inconsistent — mixed case, empty strings, sentinel placeholders, non-canonical enums. I'll define rules to normalise each one before Gold applies business logic.",
     ],
+    stepMs: 750,
+    steps: [
+      { id: 'nulls',   icon: 'eye',    label: 'Inventory sentinels + placeholders to NULL',     result: "'', 'N/A', '-', 1900-01-01, 9999-12-31 → NULL" },
+      { id: 'case',    icon: 'wand',   label: 'Set case rules per column',                      result: 'INITCAP names · UPPER codes · LOWER emails · TRIM everywhere' },
+      { id: 'enums',   icon: 'schema', label: 'Map enums to canonical via ref.enum_status',     result: '7 status variants → open / paid / void · unmapped → quarantine' },
+      { id: 'phones',  icon: 'bolt',   label: 'Plan phone + identifier formatting',             result: 'E.164 with +1 default · invalid lengths → _s3_quarantine' },
+      { id: 'checks',  icon: 'check',  label: 'Define reviewer assertions',                     result: 'cleanse rules · enum coverage · lineage passthrough' },
+    ],
+    outro: [
+      "S3 plan is ready — sentinel values → NULL, names INITCAP'd, codes UPPER'd, status mapped to canonical enum via a reference table, phones in E.164. Unmappable enums and invalid identifiers route to _s3_quarantine. Approve to write the code.",
+    ],
+    chip: { view: 'silver-plan', label: 'View S3 plan', hint: 'Plan-only view · no code yet' },
+    choices: [
+      { id: 'approve-s3-plan', label: 'Approve plan',     next: 'task-s3-build' },
+      { id: 'changes-s3-plan', label: 'Request changes', next: null },
+    ],
+    setCtx: { silverStage: 's3' },
   },
   {
-    id: 'w-s3-review',
-    role: 'walt',
-    waitForSilver: 's3',
+    id: 'task-s3-build',
+    role: 'task',
+    agent: 'transformer',
+    subLabel: 's3-cleanse-agent',
+    title: 'Building S3 · cleanse',
     body: [
-      "S3 cleared on round 1. ~60 silver views ready. That's the full silver layer for {{domain}}.",
+      "Plan approved — writing the cleanse SQL across ~60 silver views, joining the enum reference table for canonical mapping.",
     ],
-    chip: { view: 'silver', label: 'S3 ready for review', hint: 'View code + checks' },
+    stepMs: 700,
+    steps: [
+      { id: 'ref',    icon: 'cloud',  label: 'Load reference tables · enums + FX',                  result: 'ref.enum_status · ref.fx_rate · 2026-05-12' },
+      { id: 'sql',    icon: 'code',   label: 'Apply case · TRIM · sentinel → NULL · enum mapping',  result: 'round 1 · _cleanse_applied_rules tracked per row' },
+      { id: 'phones', icon: 'bolt',   label: 'Normalise phones + identifiers to E.164',             result: '12 invalid lengths → _s3_quarantine' },
+      { id: 'run',    icon: 'flow',   label: 'Run cleanse on sandbox',                              result: '~60 views built · 12 quarantined · 4 unmappable enums' },
+      { id: 'review', icon: 'check',  label: 'Reviewer: cleanse rules + enum coverage',             result: 'attested in DDL header · cleared round 1' },
+      { id: 'land',   icon: 'layers', label: 'Stage _s3_valid + _s3_quarantine views',              result: 'silver/finance · ready' },
+    ],
+    outro: [
+      "Cleared on round 1. ~60 silver views ready — names INITCAP'd, codes UPPER'd, status mapped to canonical enum, 12 invalid phone numbers and 4 unmappable enum values routed to _s3_quarantine. Reviewer attestation is in the DDL header. That's the full silver layer for {{domain}}. Approve when you're happy and we'll move to commit.",
+    ],
+    chip: { view: 'silver-code', label: 'Review S3 code', hint: 'Open code + approve in chat' },
     choices: [
       { id: 'approve-s3', label: 'Approve S3', setCtx: { silverApproved: { s1: true, s2: true, s3: true } } },
-      { id: 'changes-s3', label: 'Request changes' },
+      { id: 'changes-s3', label: 'Request changes', next: null },
     ],
+    startSilverStage: 's3',
   },
 
   // ---- Commit choice: git or local ----
@@ -358,14 +409,16 @@ export const FIRST_RUN_SCRIPT = [
   },
 
   // ---- Git branch ----
+  // Setup is a modal wizard (same shape as the source wizard) — never a side-panel
+  // artifact. The side panel is reserved for consuming information; configuration
+  // overlays the chat so the user stays in the conversation.
   {
     id: 'w-git-setup',
     role: 'walt',
     body: [
-      "Got it. Connect a git remote in the panel — paste a repo URL or pick from your configured providers. I'll commit the silver views, agent config, and policies, then open a PR with CI attached.",
+      "Got it. Connect a git remote — paste a repo URL or pick from your configured providers. I'll commit the silver views, agent config, and policies, then open a PR with CI attached.",
     ],
-    chip: { view: 'gitconnect', label: 'Connect git remote', hint: 'Configure remote' },
-    action: { type: 'openArtifact', view: 'gitconnect', tab: 'context' },
+    chip: { wizard: 'gitconnect', label: 'Connect git remote', hint: 'Opens setup wizard' },
     awaitConfirm: 'gitconnect',
   },
   {
@@ -376,7 +429,6 @@ export const FIRST_RUN_SCRIPT = [
       "Review the diff and commit in the panel when you're ready. Promotion to production is a separate step — I'll ask after the commit lands.",
     ],
     chip: { view: 'pr', label: 'PR #{{prNumber}} · ready to commit', hint: 'Open the PR' },
-    action: { type: 'openArtifact', view: 'pr', tab: 'transformation' },
   },
   {
     id: 'w-pr-merged',
@@ -417,8 +469,7 @@ export const FIRST_RUN_SCRIPT = [
       "Project's live. Five agents are running: Ingestor on cadence, Transformer on-event, Reasoner streaming, Operator watching DQ + drift, Governer enforcing policy.",
       "What would you like to do next?",
     ],
-    chip: { view: 'production', label: 'Production dashboard', hint: 'Live status' },
-    action: { type: 'openArtifact', view: 'production', tab: 'ingestion' },
+    chip: { view: 'ingestion-status', label: 'View production status', hint: 'Live run + table profile' },
     choices: [
       { id: 'ask-dayone',  label: 'Answer the day-one questions' },
       { id: 'add-source',  label: 'Add another source' },

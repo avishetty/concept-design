@@ -1,58 +1,63 @@
 import React from 'react';
 import { Icon } from '../lib/components.jsx';
 import { usePhase } from './state.jsx';
-import { ConnectionsArtifact } from './artifacts/ConnectionsArtifact.jsx';
-import { IngestionArtifact } from './artifacts/IngestionArtifact.jsx';
 import { SamplePreviewArtifact } from './artifacts/SamplePreviewArtifact.jsx';
-import { SilverBuildArtifact } from './artifacts/SilverBuildArtifact.jsx';
 import { PullRequestArtifact } from './artifacts/PullRequestArtifact.jsx';
-import { ProductionDashboardArtifact } from './artifacts/ProductionDashboardArtifact.jsx';
 import { CodeArtifact } from './artifacts/CodeArtifact.jsx';
 import { SqlEditorArtifact } from './artifacts/SqlEditorArtifact.jsx';
 import { ContextArtifact } from './artifacts/ContextArtifact.jsx';
-import { GitConnectArtifact } from './artifacts/GitConnectArtifact.jsx';
+import { PlanArtifact } from './artifacts/PlanArtifact.jsx';
+import { IngestionStatusArtifact } from './artifacts/IngestionStatusArtifact.jsx';
 
-const TABS = [
-  { key: 'ingestion',      label: 'Ingestion',      icon: 'cloud' },
-  { key: 'transformation', label: 'Transformation', icon: 'wand' },
-  { key: 'code',           label: 'Code',           icon: 'code' },
-  { key: 'sql',            label: 'SQL',            icon: 'terminal' },
-  { key: 'context',        label: 'Context',        icon: 'layers' },
-];
-
-const INGESTION_VIEWS = ['connections', 'ingestion', 'sample', 'production'];
-const TRANSFORMATION_VIEWS = ['silver', 'pr'];
-const CODE_VIEWS = ['code'];
-const SQL_VIEWS = ['sql'];
-const CONTEXT_VIEWS = ['context', 'gitconnect'];
-
-const TAB_DEFAULT_VIEW = {
-  ingestion: 'ingestion',
-  transformation: 'silver',
-  code: 'code',
-  sql: 'sql',
-  context: 'context',
+// ArtifactsPanel — single-artifact side panel for the chat shell.
+//
+// Design notes
+// ------------
+// The panel shows exactly one artifact at a time. Chat pills (and the few code
+// review controls) push into it via openArtifact(view). There is no tab strip
+// here any more — the live ingestion run and the silver build flow live on
+// their own *project pages* (Ingestion / Transformation), reachable from the
+// org dashboard or the in-chat status notifications.
+//
+// The persistent "anywhere" views (Code / SQL / Context) live behind an
+// overflow menu in the header so the user can jump to them without leaving the
+// chat surface.
+const VIEW_META = {
+  'silver-plan':       { label: 'Plan',             icon: 'wand' },
+  'silver-code':       { label: 'Silver code',      icon: 'code' },
+  'ingestion-status':  { label: 'Ingestion · live', icon: 'pulse' },
+  'sample':            { label: 'Sample preview',   icon: 'table' },
+  'pr':                { label: 'Pull request',     icon: 'git' },
+  'code':              { label: 'Code',             icon: 'code' },
+  'sql':               { label: 'SQL editor',       icon: 'terminal' },
+  'context':           { label: 'Context',          icon: 'layers' },
 };
 
-// Width bounds. Chat needs enough room to keep the 720px reading column comfortable;
-// the artifact panel needs enough room for code/table grids.
+// Views available behind the overflow menu — the persistent surfaces that
+// stay reachable regardless of what task the agent is doing.
+const PERSISTENT_VIEWS = [
+  { view: 'code',    label: 'Code',    icon: 'code',
+    desc: 'Browse the repo' },
+  { view: 'sql',     label: 'SQL',     icon: 'terminal',
+    desc: 'Run a query' },
+  { view: 'context', label: 'Context', icon: 'layers',
+    desc: 'What Walt remembers' },
+];
+
+// Width bounds for the split.
 const DEFAULT_PANEL_WIDTH = 540;
 const MIN_PANEL_WIDTH = 380;
 const MIN_CHAT_WIDTH = 440;
 
 export function ArtifactsPanel() {
-  const { shell, openArtifact, setArtifactTab } = usePhase();
-  const { artifactView, artifactTab } = shell;
+  const { shell, openArtifact } = usePhase();
+  const { artifactView } = shell;
   const isOpen = !!artifactView;
 
-  // Keep the *contents* mounted briefly during a close so the slide-out reads as motion,
-  // not as a hard cut. `rendered` follows `isOpen` with a small trailing delay.
+  // Keep contents mounted briefly during a close so the slide-out reads as motion.
   const [rendered, setRendered] = React.useState(isOpen);
   React.useEffect(() => {
-    if (isOpen) {
-      setRendered(true);
-      return;
-    }
+    if (isOpen) { setRendered(true); return; }
     const t = setTimeout(() => setRendered(false), 320);
     return () => clearTimeout(t);
   }, [isOpen]);
@@ -70,7 +75,6 @@ export function ArtifactsPanel() {
       const rect = aside.getBoundingClientRect();
       const parent = aside.parentElement;
       const parentRect = parent ? parent.getBoundingClientRect() : { width: window.innerWidth };
-      // Panel hugs the right edge; new width = right edge - cursor x.
       const desired = rect.right - e.clientX;
       const maxWidth = Math.max(MIN_PANEL_WIDTH, parentRect.width - MIN_CHAT_WIDTH);
       const clamped = Math.max(MIN_PANEL_WIDTH, Math.min(maxWidth, desired));
@@ -93,7 +97,6 @@ export function ArtifactsPanel() {
     };
   }, [dragging]);
 
-  // If the viewport shrinks below what the current width allows, gently re-clamp.
   React.useEffect(() => {
     const onResize = () => {
       if (!asideRef.current?.parentElement) return;
@@ -105,11 +108,7 @@ export function ArtifactsPanel() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const onTab = (k) => {
-    if (artifactTab === k) return;
-    const defaultView = TAB_DEFAULT_VIEW[k];
-    openArtifact(defaultView, k);
-  };
+  const meta = VIEW_META[artifactView] || { label: 'Artifact', icon: 'sparkle' };
 
   return (
     <aside ref={asideRef} style={{
@@ -117,7 +116,6 @@ export function ArtifactsPanel() {
       flexShrink: 0,
       overflow: 'hidden',
       position: 'relative',
-      // Drop the width transition while dragging so the panel tracks the cursor 1:1.
       transition: dragging
         ? 'border-left-color .2s ease'
         : 'width .32s cubic-bezier(.22,.61,.36,1), border-left-color .2s ease',
@@ -126,12 +124,7 @@ export function ArtifactsPanel() {
       display: 'flex', flexDirection: 'column',
       minHeight: 0,
     }}>
-      {isOpen && (
-        <ResizeHandle
-          dragging={dragging}
-          onStart={() => setDragging(true)}
-        />
-      )}
+      {isOpen && <ResizeHandle dragging={dragging} onStart={() => setDragging(true)}/>}
       {rendered && (
         <div
           className={isOpen ? 'walt-panel-in' : undefined}
@@ -141,44 +134,16 @@ export function ArtifactsPanel() {
             transition: 'opacity .2s ease',
           }}
         >
-          <div style={{
-            height: 40, flexShrink: 0,
-            display: 'flex', alignItems: 'center',
-            padding: '0 12px 0 4px',
-            background: 'var(--bg-surface)',
-            borderBottom: '1px solid var(--border-subtle)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, minWidth: 0, overflowX: 'auto' }}>
-              {TABS.map(t => {
-                const on = artifactTab === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => onTab(t.key)}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
-                      height: 30, padding: '0 11px',
-                      borderRadius: 7,
-                      border: 'none',
-                      background: on ? 'var(--bg-inset)' : 'transparent',
-                      color: on ? 'var(--text-primary)' : 'var(--text-muted)',
-                      fontSize: 12, fontWeight: on ? 600 : 500,
-                      fontFamily: 'var(--font-sans)',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'background .12s, color .12s',
-                    }}
-                  >
-                    <Icon name={t.icon} size={11} color={on ? 'var(--text-secondary)' : 'currentColor'}/>
-                    {t.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div key={artifactView} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', animation: 'walt-fade-in .26s ease' }}>
-            <ArtifactBody view={artifactView} tab={artifactTab}/>
+          <PanelHeader
+            meta={meta}
+            activeView={artifactView}
+            onPick={(v) => openArtifact(v)}
+          />
+          <div
+            key={artifactView}
+            style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', animation: 'walt-fade-in .26s ease' }}
+          >
+            {renderView(artifactView)}
           </div>
         </div>
       )}
@@ -186,8 +151,124 @@ export function ArtifactsPanel() {
   );
 }
 
-// Thin vertical grab strip on the panel's left edge. Hit area is wider than the visible
-// line so it's forgiving without taking real estate from the content.
+function PanelHeader({ meta, activeView, onPick }) {
+  return (
+    <div style={{
+      height: 40, flexShrink: 0,
+      display: 'flex', alignItems: 'center',
+      padding: '0 6px 0 14px',
+      background: 'var(--bg-surface)',
+      borderBottom: '1px solid var(--border-subtle)',
+    }}>
+      <Icon name={meta.icon} size={12} color="var(--text-secondary)"/>
+      <span style={{
+        marginLeft: 8, fontSize: 12.5, fontWeight: 600,
+        color: 'var(--text-primary)', letterSpacing: -0.1,
+      }}>
+        {meta.label}
+      </span>
+      <div style={{ flex: 1 }}/>
+      <OverflowMenu activeView={activeView} onPick={onPick}/>
+    </div>
+  );
+}
+
+function OverflowMenu({ activeView, onPick }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const onClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        aria-label="More views"
+        title="More views"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: 28, height: 28, borderRadius: 6,
+          border: '1px solid ' + (open ? 'var(--border-default, var(--border-subtle))' : 'transparent'),
+          background: open ? 'var(--bg-inset)' : 'transparent',
+          color: 'var(--text-muted)',
+          cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'background .12s, color .12s, border-color .12s',
+        }}
+        onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+      >
+        <Icon name="dots" size={14} color="currentColor"/>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 30,
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-default, var(--border-subtle))',
+          borderRadius: 10,
+          boxShadow: '0 12px 28px rgba(17,20,24,0.10), 0 2px 6px rgba(17,20,24,0.05)',
+          padding: 4,
+          minWidth: 220,
+        }}>
+          <div style={{
+            padding: '6px 10px 8px',
+            fontSize: 10.5, color: 'var(--text-muted)',
+            textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600,
+          }}>Open view</div>
+          {PERSISTENT_VIEWS.map(v => {
+            const on = activeView === v.view;
+            return (
+              <button
+                key={v.view}
+                onClick={() => { onPick(v.view); setOpen(false); }}
+                style={{
+                  width: '100%', textAlign: 'left',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '7px 10px',
+                  borderRadius: 6,
+                  border: 'none', background: on ? 'var(--accent-soft)' : 'transparent',
+                  cursor: 'pointer',
+                  color: on ? 'var(--accent)' : 'var(--text-primary)',
+                  fontSize: 12, fontFamily: 'var(--font-sans)',
+                }}
+                onMouseEnter={(e) => { if (!on) e.currentTarget.style.background = 'var(--bg-hover)'; }}
+                onMouseLeave={(e) => { if (!on) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span style={{
+                  width: 22, height: 22, borderRadius: 6,
+                  background: on ? 'var(--accent-soft)' : 'var(--bg-inset)',
+                  color: on ? 'var(--accent)' : 'var(--text-secondary)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <Icon name={v.icon} size={11} color="currentColor"/>
+                </span>
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
+                  <span style={{ fontWeight: on ? 600 : 500 }}>{v.label}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{v.desc}</span>
+                </span>
+                {on && <Icon name="check" size={10} color="var(--accent)"/>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Thin vertical grab strip on the panel's left edge.
 function ResizeHandle({ dragging, onStart }) {
   const [hover, setHover] = React.useState(false);
   const active = dragging || hover;
@@ -218,106 +299,17 @@ function ResizeHandle({ dragging, onStart }) {
   );
 }
 
-function ArtifactBody({ view, tab }) {
-  // Some tabs can hold multiple views; show the active view, plus a sub-strip when there are multiple choices.
-  const viewsForTab = {
-    ingestion:      INGESTION_VIEWS,
-    transformation: TRANSFORMATION_VIEWS,
-    code:           CODE_VIEWS,
-    sql:            SQL_VIEWS,
-    context:        CONTEXT_VIEWS,
-  }[tab] || [];
-
-  const showSubStrip = viewsForTab.length > 1;
-
-  return (
-    <>
-      {showSubStrip && <SubStrip views={viewsForTab} active={view}/>}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        {renderView(view)}
-      </div>
-    </>
-  );
-}
-
-const VIEW_LABEL = {
-  connections: 'Sources',
-  ingestion:   'Live ingestion',
-  sample:      'Sample preview',
-  production:  'Production',
-  silver:      'Silver build',
-  pr:          'Pull request',
-  code:        'Code',
-  sql:         'SQL',
-  context:     'Context',
-  gitconnect:  'Git remote',
-};
-
-const VIEW_ICON = {
-  connections: 'db',
-  ingestion:   'pulse',
-  sample:      'table',
-  production:  'rocket',
-  silver:      'wand',
-  pr:          'git',
-  code:        'code',
-  sql:         'terminal',
-  context:     'layers',
-  gitconnect:  'git',
-};
-
-function SubStrip({ views, active }) {
-  const { openArtifact, shell } = usePhase();
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 4,
-      padding: '8px 12px',
-      borderBottom: '1px solid var(--border-subtle)',
-      background: 'var(--bg-surface)',
-      overflowX: 'auto',
-    }}>
-      {views.map(v => {
-        const on = active === v;
-        return (
-          <button
-            key={v}
-            onClick={() => openArtifact(v, shell.artifactTab)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              padding: '4px 9px',
-              borderRadius: 999,
-              border: on ? '1px solid var(--border-default)' : '1px solid transparent',
-              background: on ? 'var(--bg-elevated)' : 'transparent',
-              fontSize: 11, fontWeight: on ? 600 : 500,
-              color: on ? 'var(--text-primary)' : 'var(--text-muted)',
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <Icon name={VIEW_ICON[v]} size={10} color={on ? 'var(--text-secondary)' : 'currentColor'}/>
-            {VIEW_LABEL[v]}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function renderView(view) {
   switch (view) {
-    case 'connections': return <ConnectionsArtifact/>;
-    case 'ingestion':   return <IngestionArtifact/>;
-    case 'sample':      return <SamplePreviewArtifact/>;
-    case 'silver':      return <SilverBuildArtifact/>;
-    case 'pr':          return <PullRequestArtifact/>;
-    case 'production':  return <ProductionDashboardArtifact/>;
-    case 'code':        return <CodeArtifact/>;
-    case 'sql':         return <SqlEditorArtifact/>;
-    case 'context':     return <ContextArtifact/>;
-    case 'gitconnect':  return <GitConnectArtifact/>;
-    default:
-      return <EmptyState/>;
+    case 'silver-plan':      return <PlanArtifact/>;
+    case 'silver-code':      return <CodeArtifact/>;
+    case 'ingestion-status': return <IngestionStatusArtifact/>;
+    case 'sample':           return <SamplePreviewArtifact/>;
+    case 'pr':               return <PullRequestArtifact/>;
+    case 'code':             return <CodeArtifact/>;
+    case 'sql':              return <SqlEditorArtifact/>;
+    case 'context':          return <ContextArtifact/>;
+    default:                 return <EmptyState/>;
   }
 }
 

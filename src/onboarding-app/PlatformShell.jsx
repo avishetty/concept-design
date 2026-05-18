@@ -15,13 +15,17 @@ import { CatalogPage } from './pages/CatalogPage.jsx';
 import { RunsPage } from './pages/RunsPage.jsx';
 import { SettingsPage } from './pages/SettingsPage.jsx';
 import { MemoryPage } from './pages/MemoryPage.jsx';
+import { IngestionPage } from './pages/IngestionPage.jsx';
+import { TransformationPage } from './pages/TransformationPage.jsx';
+import { SourceWizard } from './components/SourceWizard.jsx';
+import { GitConnectWizard } from './components/GitConnectWizard.jsx';
 
 // The project shell is just the selected tab's content. Chrome (breadcrumb, bell,
 // user menu) lives in the shared TopAppBar above. The user enters a specific tab
 // by clicking the matching quick-action icon on the org-dashboard card and pops
 // back to the dashboard via the breadcrumb to switch tabs.
 export function PlatformShell() {
-  const { shell, ctx } = usePhase();
+  const { shell, ctx, closeWizard } = usePhase();
   // Demo siblings are read-only stubs — surface a light banner so it's clear the
   // chat machinery isn't wired for those projects.
   const isDemo = !!ctx.activeProjectId;
@@ -29,12 +33,17 @@ export function PlatformShell() {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--bg-app)' }}>
       {isDemo && <DemoProjectBanner/>}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {shell.shellTab === 'chat'     && <ChatTabContent/>}
-        {shell.shellTab === 'catalog'  && <CatalogPage/>}
-        {shell.shellTab === 'runs'     && <RunsPage/>}
-        {shell.shellTab === 'memory'   && <MemoryPage/>}
-        {shell.shellTab === 'settings' && <SettingsPage/>}
+        {shell.shellTab === 'chat'           && <ChatTabContent/>}
+        {shell.shellTab === 'catalog'        && <CatalogPage/>}
+        {shell.shellTab === 'runs'           && <RunsPage/>}
+        {shell.shellTab === 'memory'         && <MemoryPage/>}
+        {shell.shellTab === 'settings'       && <SettingsPage/>}
+        {shell.shellTab === 'ingestion'      && <IngestionPage/>}
+        {shell.shellTab === 'transformation' && <TransformationPage/>}
       </div>
+      {/* Modals live at the shell level so they overlay whichever tab is active. */}
+      <SourceWizard     open={shell.wizardOpen === 'sources'}    onClose={closeWizard}/>
+      <GitConnectWizard open={shell.wizardOpen === 'gitconnect'} onClose={closeWizard}/>
     </div>
   );
 }
@@ -79,6 +88,7 @@ function ChatColumn() {
     shell, ctx, addTurn, set,
     setComposerSuggestions, clearComposerSuggestions,
     setIngestionStatus, setSilverStageStatus, setAwaitingArtifactConfirm,
+    clearPendingChoice,
   } = usePhase();
   const turns = shell.chatTurns;
   const [busy, setBusy] = React.useState(false);
@@ -136,11 +146,20 @@ function ChatColumn() {
     // Gate: waitForMerge — pause until the user clicks Merge in the PR panel.
     if (turn.waitForMerge && !ctx.prMerged) return;
 
+    // Guard against duplicate plays. The effect's deps include
+    // shell.ingestionStatus / silverStageStatus / ctx.prMerged so it re-runs
+    // when those flip — but if a turn has *already been added* to chatTurns
+    // we must not re-run it. (e.g. task-ingest flips ingestionStatus to
+    // 'running' inside its side effects, which would otherwise immediately
+    // re-fire the effect with the same nextId and double-play the turn.)
+    if (shell.chatTurns.some(t => t.id === turn.id)) return;
+
     setBusy(true);
     let typingDelay;
     if (turn.role === 'system')        typingDelay = 460;
     else if (turn.role === 'user')     typingDelay = 1100;
     else if (turn.role === 'progress') typingDelay = 0;   // appears immediately under the kick-off turn
+    else if (turn.role === 'task')     typingDelay = 0;   // task turns own their own progress; no extra typing delay
     else                                typingDelay = 820;
 
     const t1 = setTimeout(() => {
@@ -153,10 +172,15 @@ function ChatColumn() {
         ...turn,
         body: renderBody(turn.body, ctx),
         chip: turn.chip ? { ...turn.chip, label: interp(turn.chip.label), hint: interp(turn.chip.hint) } : turn.chip,
-        // Progress turns interpolate {{ctx}} into their step labels too, and we
-        // stamp `playedAt` so the visual frame survives unmount/remount (the
-        // step state is derived from elapsed time, not component state).
-        ...(turn.role === 'progress'
+        chips: turn.chips ? turn.chips.map(c => ({
+          ...c,
+          label: interp(c.label),
+          hint:  interp(c.hint),
+        })) : turn.chips,
+        // Progress + task turns interpolate {{ctx}} into their step labels too,
+        // and we stamp `playedAt` so the visual frame survives unmount/remount
+        // (step state is derived from elapsed time, not component state).
+        ...((turn.role === 'progress' || turn.role === 'task')
           ? {
               steps: (turn.steps || []).map(s => ({
                 ...s,
@@ -165,6 +189,9 @@ function ChatColumn() {
               })),
               playedAt: Date.now(),
             }
+          : null),
+        ...(turn.role === 'task' && turn.outro
+          ? { outro: renderBody(turn.outro, ctx) }
           : null),
       };
       addTurn(renderedTurn);
@@ -193,9 +220,13 @@ function ChatColumn() {
         const stage = turn.startSilverStage;
         set({ silverStage: stage });
         setSilverStageStatus(stage, 'running');
-        // Per-stage simulated build duration. S2 is a touch longer to mirror the
-        // "needed two rounds" narrative.
-        const buildMs = stage === 's2' ? 4500 : 3500;
+        // Sync the simulated build duration with the task's in-bubble progress
+        // strip so CodeArtifact's "Reviewing Sx code" banner flips on exactly
+        // when the chat outro lands. (Was hard-coded 3500 / 4500 before —
+        // drifted whenever the build steps changed.)
+        const steps  = (turn.steps || []).length;
+        const stepMs = turn.stepMs || 800;
+        const buildMs = Math.max(800, steps * stepMs);
         setTimeout(() => setSilverStageStatus(stage, 'review'), buildMs);
       }
       if (turn.awaitConfirm) {
@@ -207,28 +238,53 @@ function ChatColumn() {
         return; // pause on user choice
       }
 
-      // Otherwise, advance to next in script (or to turn.next if specified).
-      if (turn.next) {
-        setNextId(turn.next);
-      } else {
-        const i = scriptIndexById(turn.id);
-        setNextId(i >= 0 && i + 1 < FIRST_RUN_SCRIPT.length ? FIRST_RUN_SCRIPT[i + 1].id : null);
+      // For task turns, delay the advance until the in-bubble progress
+      // animation finishes — that's when its outro/chip/choices reveal, so the
+      // next turn shouldn't appear until the user has seen the wrap-up.
+      let advanceDelay = 0;
+      if (turn.role === 'task' && turn.gated !== false) {
+        const steps  = (turn.steps || []).length;
+        const stepMs = turn.stepMs || 800;
+        advanceDelay = steps * stepMs + 240; // small breather after the last step
       }
+
+      const advance = () => {
+        if (turn.next) {
+          setNextId(turn.next);
+        } else {
+          const i = scriptIndexById(turn.id);
+          setNextId(i >= 0 && i + 1 < FIRST_RUN_SCRIPT.length ? FIRST_RUN_SCRIPT[i + 1].id : null);
+        }
+      };
+      if (advanceDelay > 0) {
+        const t2 = setTimeout(advance, advanceDelay);
+        // We can't return cleanup from inside this nested setTimeout, but the
+        // outer effect's cleanup re-runs whenever nextId changes — so a fresh
+        // advance attempt won't race.
+        return () => clearTimeout(t2);
+      }
+      advance();
     }, typingDelay);
     return () => clearTimeout(t1);
   }, [nextId, shell.sessionId, shell.ingestionStatus, shell.silverStageStatus, ctx.prMerged]);
 
-  // Watch for artifact confirmation completion (e.g. git remote saved).
+  // Watch for artifact confirmation completion (e.g. git remote saved, sources wizard finished).
+  // Walk backwards through chatTurns to find the most recent *script* turn (skipping user
+  // echoes the artifact may have just pushed) and advance past it if it was the one awaiting
+  // confirm. Looking only at chatTurns[-1] would miss the case where the artifact pushed a
+  // user echo before clearing the gate.
   React.useEffect(() => {
     if (shell.awaitingArtifactConfirm) return; // still awaiting
-    // If a prior turn was awaiting confirm and it just cleared, advance past it.
-    const last = shell.chatTurns[shell.chatTurns.length - 1];
-    if (!last) return;
-    const lastTurn = FIRST_RUN_SCRIPT.find(t => t.id === last.id);
-    if (!lastTurn?.awaitConfirm) return;
     if (nextId) return; // we've already moved past
-    const i = scriptIndexById(lastTurn.id);
-    if (i >= 0 && i + 1 < FIRST_RUN_SCRIPT.length) setNextId(FIRST_RUN_SCRIPT[i + 1].id);
+    for (let i = shell.chatTurns.length - 1; i >= 0; i--) {
+      const t = shell.chatTurns[i];
+      const scriptTurn = FIRST_RUN_SCRIPT.find(s => s.id === t.id);
+      if (!scriptTurn) continue; // skip synthetic user echoes
+      if (!scriptTurn.awaitConfirm) return; // most recent script turn wasn't gated — nothing to do
+      const idx = scriptIndexById(scriptTurn.id);
+      if (idx >= 0 && idx + 1 < FIRST_RUN_SCRIPT.length) setNextId(FIRST_RUN_SCRIPT[idx + 1].id);
+      return;
+    }
   }, [shell.awaitingArtifactConfirm]);
 
   // Handle a pill click (multiple-choice). Adds a user turn echoing the choice label,
@@ -248,6 +304,19 @@ function ChatColumn() {
       setNextId(i >= 0 && i + 1 < FIRST_RUN_SCRIPT.length ? FIRST_RUN_SCRIPT[i + 1].id : null);
     }
   };
+
+  // Synthetic choice bridge — when an artifact UI (CodeArtifact review bar,
+  // etc.) requests a choice via state.pendingChoice, replay it through the
+  // existing onChoice handler so all branching/ctx-mutation logic stays in one
+  // place. We clear the pending value immediately to avoid re-firing.
+  React.useEffect(() => {
+    const req = shell.pendingChoice;
+    if (!req) return;
+    const fromTurn = FIRST_RUN_SCRIPT.find(t => t.id === req.turnId);
+    const choice = fromTurn?.choices?.find(c => c.id === req.choiceId);
+    clearPendingChoice();
+    if (fromTurn && choice) onChoice(choice, fromTurn);
+  }, [shell.pendingChoice]);
 
   // The composer "Send" surfaces here when the script is awaiting user text.
   const onSendUserText = (text) => {
@@ -293,7 +362,7 @@ function ChatHeader() {
     }
     // Re-open whatever was last shown; fall back to the Context view as a sensible default.
     const view = shell.lastArtifactView || 'context';
-    const tab  = shell.lastArtifactTab  || (view === 'context' || view === 'gitconnect' ? 'context' : 'ingestion');
+    const tab  = shell.lastArtifactTab  || (view === 'context' ? 'context' : 'ingestion');
     openArtifact(view, tab);
   };
   return (

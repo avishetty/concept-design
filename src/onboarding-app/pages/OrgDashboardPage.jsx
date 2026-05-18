@@ -223,6 +223,8 @@ function ProjectCard({ project: p }) {
         }}
       >
         <ActionIcon icon="msg"      label="Open chat"        onClick={() => enterProject('chat')}/>
+        <ActionIcon icon="pipe"     label="Ingestion"        onClick={() => enterProject('ingestion')}/>
+        <ActionIcon icon="layers"   label="Transformation"   onClick={() => enterProject('transformation')}/>
         <ActionIcon icon="db"       label="Catalog"          onClick={() => enterProject('catalog')}/>
         <ActionIcon icon="code"     label="Browse code"      onClick={() => enterProject('chat', 'code')}/>
         <ActionIcon icon="pulse"    label="Agent runs"       onClick={() => enterProject('runs')}/>

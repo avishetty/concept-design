@@ -24,14 +24,14 @@ const TREE = [
   {
     layer: 'silver',
     label: 'silver',
-    desc: 'Dedup · type-cast · standardise · 60 views',
+    desc: 'Dedup · type-cast · cleanse · 60 views',
     tables: [
-      { name: 's1_dedup.finance_ap_invoices',         kind: 'view', rows: '184,917', fresh: '6m' },
-      { name: 's2_typecast.finance_ap_invoices',      kind: 'view', rows: '184,903', fresh: '6m' },
-      { name: 's3_standardise.finance_ap_invoices',   kind: 'view', rows: '184,903', fresh: '6m' },
-      { name: 's1_dedup.finance_ar_invoices',         kind: 'view', rows: '508,210', fresh: '6m' },
-      { name: 's2_typecast.finance_ar_invoices',      kind: 'view', rows: '508,205', fresh: '6m' },
-      { name: 's3_standardise.finance_ar_invoices',   kind: 'view', rows: '508,205', fresh: '6m' },
+      { name: 's1_dedup.finance_ap_invoices_valid',           kind: 'view', rows: '184,917', fresh: '6m' },
+      { name: 's2_typecast.finance_ap_invoices_valid',        kind: 'view', rows: '184,903', fresh: '6m' },
+      { name: 's3_cleanse.finance_ap_invoices_valid',         kind: 'view', rows: '184,891', fresh: '6m' },
+      { name: 's1_dedup.finance_ar_invoices_valid',           kind: 'view', rows: '508,210', fresh: '6m' },
+      { name: 's2_typecast.finance_ar_invoices_valid',        kind: 'view', rows: '508,205', fresh: '6m' },
+      { name: 's3_cleanse.finance_ar_invoices_valid',         kind: 'view', rows: '508,193', fresh: '6m' },
     ],
   },
   {
@@ -152,7 +152,7 @@ const SAMPLES = {
       ['SOW-2026-0301', 'C-02211', '2026-05',  '7,700.00', 'recognised'],
     ],
   },
-  'silver.s1_dedup.finance_ap_invoices': {
+  'silver.s1_dedup.finance_ap_invoices_valid': {
     headers: ['invoice_id', 'vendor_id', 'issue_date', 'amount', 'currency', '_walt_dup_count'],
     rows: [
       ['INV-0000182441', 'V-00214', '2026-05-08', '12840.10',  'USD', '1'],
@@ -165,7 +165,7 @@ const SAMPLES = {
       ['INV-0000182434', 'V-00214', '2026-05-05', '14200.00',  'USD', '1'],
     ],
   },
-  'silver.s2_typecast.finance_ap_invoices': {
+  'silver.s2_typecast.finance_ap_invoices_valid': {
     headers: ['invoice_id', 'vendor_id', 'issue_date::date', 'due_date::date', 'amount::numeric(18,2)', 'status::varchar'],
     rows: [
       ['INV-0000182441', 'V-00214', '2026-05-08', '2026-06-07', '12840.10', 'open'],
@@ -176,7 +176,7 @@ const SAMPLES = {
       ['INV-0000182436', 'V-00214', '2026-05-06', '2026-06-05', '12810.10', 'paid'],
     ],
   },
-  'silver.s3_standardise.finance_ap_invoices': {
+  'silver.s3_cleanse.finance_ap_invoices_valid': {
     headers: ['invoice_id', 'vendor_id', 'issue_date', 'due_date', 'amount_usd', 'status', 'is_overdue'],
     rows: [
       ['INV-0000182441', 'V-00214', '2026-05-08', '2026-06-07', '12840.10', 'open',    'false'],
@@ -189,7 +189,7 @@ const SAMPLES = {
       ['INV-0000182434', 'V-00214', '2026-05-05', '2026-06-04', '14200.00', 'open',    'false'],
     ],
   },
-  'silver.s1_dedup.finance_ar_invoices': {
+  'silver.s1_dedup.finance_ar_invoices_valid': {
     headers: ['invoice_id', 'customer_id', 'issue_date', 'amount', 'currency', '_walt_dup_count'],
     rows: [
       ['AR-0000482104', 'C-04421', '2026-05-08', '212400.00', 'USD', '1'],
@@ -199,7 +199,7 @@ const SAMPLES = {
       ['AR-0000482100', 'C-01018', '2026-05-06', '320000.00', 'USD', '1'],
     ],
   },
-  'silver.s2_typecast.finance_ar_invoices': {
+  'silver.s2_typecast.finance_ar_invoices_valid': {
     headers: ['invoice_id', 'customer_id', 'issue_date::date', 'due_date::date', 'amount::numeric(18,2)', 'status::varchar'],
     rows: [
       ['AR-0000482104', 'C-04421', '2026-05-08', '2026-06-07', '212400.00', 'open'],
@@ -208,7 +208,7 @@ const SAMPLES = {
       ['AR-0000482101', 'C-04421', '2026-05-07', '2026-06-06',  '14800.00', 'paid'],
     ],
   },
-  'silver.s3_standardise.finance_ar_invoices': {
+  'silver.s3_cleanse.finance_ar_invoices_valid': {
     headers: ['invoice_id', 'customer_id', 'issue_date', 'due_date', 'amount_usd', 'status', 'days_overdue'],
     rows: [
       ['AR-0000482104', 'C-04421', '2026-05-08', '2026-06-07', '212400.00', 'open',    '0'],
@@ -598,7 +598,7 @@ function SqlPane({ query, onChange, onRun, state, sample, resultFq, elapsedMs })
             <EmptyState
               icon="sparkle"
               title="No matching table"
-              hint="We couldn't parse a table reference from the query. Pick one on the left or include a fully-qualified name (e.g. silver.s3_standardise.finance_ap_invoices)."
+              hint="We couldn't parse a table reference from the query. Pick one on the left or include a fully-qualified name (e.g. silver.s3_cleanse.finance_ap_invoices_valid)."
             />
           )}
         </div>
