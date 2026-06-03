@@ -210,6 +210,7 @@ export function Icon({ name, size = 16, color = 'currentColor', strokeWidth = 1.
     bell:     <g {...stroke}><path d="M4 11 V7 a4 4 0 0 1 8 0 V11 L13 12 H3 z"/><path d="M6.5 13.5 a1.5 1.5 0 0 0 3 0"/></g>,
     user:     <g {...stroke}><circle cx="8" cy="6" r="2.5"/><path d="M3 13.5 a5 5 0 0 1 10 0"/></g>,
     arrowR:   <g {...stroke}><path d="M3 8 H13"/><path d="M9.5 4.5 13 8 9.5 11.5"/></g>,
+    arrowL:   <g {...stroke}><path d="M13 8 H3"/><path d="M6.5 4.5 3 8 6.5 11.5"/></g>,
     arrowUp:  <g {...stroke}><path d="M8 13 V3"/><path d="M4.5 6.5 8 3 11.5 6.5"/></g>,
     book:     <g {...stroke}><path d="M3 3 H7 a1.5 1.5 0 0 1 1.5 1.5 V13 a1.5 1.5 0 0 0-1.5-1.5 H3 z"/><path d="M13 3 H9 a1.5 1.5 0 0 0-1.5 1.5 V13 a1.5 1.5 0 0 1 1.5-1.5 H13 z"/></g>,
     branch:   <g {...stroke}><circle cx="4" cy="3.5" r="1.5"/><circle cx="4" cy="12.5" r="1.5"/><circle cx="12" cy="6" r="1.5"/><path d="M4 5 V11"/><path d="M4 8 H8 a3 3 0 0 0 3-3 V7.5"/></g>,
@@ -243,6 +244,12 @@ export function Icon({ name, size = 16, color = 'currentColor', strokeWidth = 1.
     play2:    <g {...stroke}><circle cx="8" cy="8" r="6"/><path d="M6.5 5.5 11 8 6.5 10.5 z" fill={color} stroke="none"/></g>,
     spinner:  <g {...stroke}><path d="M8 2 a6 6 0 0 1 6 6"/></g>,
     lock:     <g {...stroke}><rect x="3.5" y="7.5" width="9" height="6" rx="1"/><path d="M5 7.5 V5 a3 3 0 0 1 6 0 V7.5"/></g>,
+    pencil:   <g {...stroke}><path d="M11 2.5 13.5 5 6 12.5 3 13 3.5 10 z"/><path d="M9.5 4 12 6.5"/></g>,
+    trash:    <g {...stroke}><path d="M3.5 4.5 H12.5"/><path d="M5.5 4.5 V3.5 a1 1 0 0 1 1-1 H9.5 a1 1 0 0 1 1 1 V4.5"/><path d="M4.5 4.5 5 13 a1 1 0 0 0 1 1 H10 a1 1 0 0 0 1-1 L11.5 4.5"/><path d="M6.5 7 V11.5 M9.5 7 V11.5"/></g>,
+    calendar: <g {...stroke}><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5 H13.5"/><path d="M5.5 2 V4.5 M10.5 2 V4.5"/></g>,
+    at:       <g {...stroke}><circle cx="8" cy="8" r="2.5"/><path d="M10.5 8 V9 a2 2 0 0 0 2 2 a2 2 0 0 0 1.5-2 A6 6 0 1 0 11 13"/></g>,
+    upload:   <g {...stroke}><path d="M8 10.5 V3"/><path d="M4.5 6 8 2.5 11.5 6"/><path d="M3 13 H13"/></g>,
+    paperclip:<g {...stroke}><path d="M13 7 L7.5 12.5 a3 3 0 0 1-4.2-4.2 L9 2.5 a2 2 0 0 1 2.8 2.8 L6.2 11 a1 1 0 0 1-1.4-1.4 L9.5 5"/></g>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" style={s} aria-hidden="true">

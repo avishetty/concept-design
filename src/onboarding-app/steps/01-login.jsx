@@ -3,7 +3,7 @@ import { Walt, WaltMark, Icon } from '../../lib/components.jsx';
 import { usePhase } from '../state.jsx';
 
 export function LoginStep() {
-  const { advance, set, ctx } = usePhase();
+  const { advance, set, goto, ctx } = usePhase();
   const [email, setEmail] = React.useState(ctx.email);
   const [password, setPassword] = React.useState('••••••••••••');
 
@@ -93,6 +93,24 @@ export function LoginStep() {
           <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
             New to Walt? <a style={link}>Request access</a>
           </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-dim)', fontSize: 11 }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }}/>
+            <span>preview</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }}/>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => goto('builder')}
+            style={builderLinkBtn}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--semantic-soft)'; e.currentTarget.style.borderColor = 'var(--semantic)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+          >
+            <Icon name="sparkle" size={13} color="var(--semantic)"/>
+            Enter Builder · Semantic Model (Preview)
+            <Icon name="arrowR" size={12} color="var(--semantic)"/>
+          </button>
         </form>
       </div>
     </div>
@@ -126,6 +144,19 @@ const ssoBtn = {
 };
 
 const link = { color: 'var(--accent)', textDecoration: 'none', fontSize: 12, cursor: 'pointer' };
+
+const builderLinkBtn = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+  height: 38, width: '100%',
+  background: 'transparent',
+  border: '1px solid var(--border-default)',
+  borderRadius: 8,
+  fontSize: 13, fontWeight: 500,
+  color: 'var(--text-primary)',
+  cursor: 'pointer',
+  fontFamily: 'var(--font-sans)',
+  transition: 'background .12s, border-color .12s',
+};
 
 function hoverOn(e) { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; }
 function hoverOff(e) { e.currentTarget.style.background = 'var(--bg-surface)'; e.currentTarget.style.borderColor = 'var(--border-default)'; }

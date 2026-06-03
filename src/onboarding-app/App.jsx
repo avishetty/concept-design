@@ -9,6 +9,7 @@ import { WelcomeStep } from './steps/02-welcome.jsx';
 import { CreateProjectStep } from './steps/03-create-project.jsx';
 import { PlatformShell } from './PlatformShell.jsx';
 import { OrgDashboardPage } from './pages/OrgDashboardPage.jsx';
+import { BuilderShell } from './builder/BuilderShell.jsx';
 
 const STEPS = {
   login:          LoginStep,
@@ -16,6 +17,7 @@ const STEPS = {
   createProject:  CreateProjectStep,
   platform:       PlatformShell,
   org:            OrgDashboardPage,
+  builder:        BuilderShell,
 };
 
 export function OnboardingApp() {
@@ -34,7 +36,10 @@ function Shell() {
   const isLogin = phase === 'login';
   const isPlatform = phase === 'platform';
   const isOrg = phase === 'org';
-  const showStepper = !isLogin && !isPlatform && !isOrg;
+  // Builder is a self-contained, full-bleed experience: it ships its own sidebar
+  // chrome, so it gets neither the setup stepper nor the shared TopAppBar.
+  const isBuilder = phase === 'builder';
+  const showStepper = !isLogin && !isPlatform && !isOrg && !isBuilder;
   const showTopBar = isPlatform || isOrg;
 
   return (
@@ -71,7 +76,9 @@ function TitleBar({ isLogin }) {
     ? 'Walt'
     : phase === 'platform'
       ? `Walt · ${ctx.projectName || 'finance-platform'}`
-      : `Walt · ${ctx.orgName || 'ImageInc'}`;
+      : phase === 'builder'
+        ? 'Walt · Global Sellout'
+        : `Walt · ${ctx.orgName || 'ImageInc'}`;
   return (
     <div style={{
       height: 36, flexShrink: 0,

@@ -117,6 +117,11 @@ function WaltTurn({ turn, onChoice, isLast }) {
 }
 
 function UserTurn({ turn }) {
+  // Backward-compatible: string-only bodies (the data-engineer flow) join into a
+  // single line exactly as before. Builder user turns may include React nodes
+  // (e.g. attached context-file chips) — those render stacked.
+  const body = turn.body || [];
+  const allStrings = body.every(b => typeof b === 'string');
   return (
     <div className="walt-rise-in" style={{ display: 'flex', justifyContent: 'flex-end' }}>
       <div style={{
@@ -128,7 +133,9 @@ function UserTurn({ turn }) {
         fontSize: 14,
         lineHeight: 1.5,
       }}>
-        {(turn.body || []).join(' ')}
+        {allStrings
+          ? body.join(' ')
+          : body.map((b, i) => <div key={i}>{b}</div>)}
       </div>
     </div>
   );

@@ -9,10 +9,12 @@ export const PHASES = [
 ];
 
 const PHASE_KEYS = PHASES.map(p => p.key);
-// `org` and `platform` are destination phases reachable by goto() but not part of
-// the setup sequence. Welcome routes to one or the other depending on whether the
-// user already has a finance-platform project.
-const ALL_PHASE_KEYS = [...PHASE_KEYS, 'platform', 'org'];
+// `org`, `platform`, and `builder` are destination phases reachable by goto() but
+// not part of the setup sequence. Welcome routes to one or the other depending on
+// whether the user already has a finance-platform project. `builder` is the
+// standalone semantic-model "Builder" experience launched from the login screen;
+// it ships its own chrome and never touches the data-engineer reducer state.
+const ALL_PHASE_KEYS = [...PHASE_KEYS, 'platform', 'org', 'builder'];
 
 // Seeded sibling projects so the ImageInc dashboard feels populated even before
 // Vincent has created anything. Vincent's own finance-platform is synthesized from
